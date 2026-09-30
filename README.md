@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/plazos)](https://pypi.org/project/plazos/)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-blue)](LICENSE)
 
-Cálculo de **plazos administrativos y judiciales españoles** que no se limita a darte una fecha:
+Cálculo de **plazos administrativos, judiciales y de pago a Hacienda en España** que no se limita a darte una fecha:
 explica cada paso y cita el artículo que lo justifica, con enlace al texto consolidado del BOE.
 
 **Pruébalo sin instalar nada:** [jaimefgdev.com/plazos](https://jaimefgdev.com/plazos/)
@@ -38,9 +38,9 @@ Vence el martes, 15 de septiembre de 2026.
 | **Administrativo** | Ley 39/2015, art. 30: días hábiles sin sábados, domingos ni festivos; días naturales cuando una ley lo dice; meses y años de fecha a fecha (último día del mes si no hay equivalente); prórroga si el último día es inhábil; festivos del domicilio **y** de la sede del órgano (art. 30.6); registro electrónico hasta las 23:59:59 (art. 31.2). |
 | **Civil** | LEC arts. 130, 133 y 135.5 y LOPJ arts. 182–185: agosto y del 24 de diciembre al 6 de enero inhábiles; actuaciones urgentes; presentación hasta las 15:00 del día hábil siguiente. |
 | **Contencioso** | LJCA art. 128.2: en agosto no corre ningún plazo (también los de meses, como los dos meses del art. 46.1), salvo derechos fundamentales. |
+| **Social** | LRJS arts. 43.4 y 45.1: modalidades urgentes (despido, vacaciones, conflictos colectivos…) en las que agosto y Navidad son hábiles; presentación hasta las 15:00 del día siguiente. |
 | **Por horas** | Ley 39/2015, art. 30.1: solo cuentan las horas de días hábiles, de hora en hora y de minuto en minuto desde la notificación, y como mucho 24 (si no, el plazo va en días). |
 | **Pago a Hacienda** | LGT, art. 62: deuda liquidada notificada del 1 al 15, hasta el día 20 del mes siguiente; del 16 al final, hasta el día 5 del segundo mes siguiente (o del 20 del mismo mes y el 5 del siguiente tras la providencia de apremio), pasando al siguiente día hábil si hace falta. |
-| **Social** | LRJS arts. 43.4 y 45.1: modalidades urgentes (despido, vacaciones, conflictos colectivos…) en las que agosto y Navidad son hábiles; presentación hasta las 15:00 del día siguiente. |
 
 **Calendarios incluidos**
 
@@ -147,8 +147,9 @@ las advertencias:
 
 La carpeta [`web/`](web/) contiene la calculadora publicada en jaimefgdev.com/plazos: HTML, CSS y
 JavaScript sin dependencias. Todo el cálculo se hace en el navegador. `web/plazos.js` traduce el motor
-de Python y `web/datos.js` se genera con `python scripts/exportar_web.py`. Un test lanza 600 casos
-aleatorios en los dos y exige que den exactamente el mismo resultado, textos incluidos.
+de Python; `web/datos.js` y `web/municipios.json` se generan con `python scripts/exportar_web.py`.
+Un test lanza 1.200 casos aleatorios (con municipios, plazos por horas y pagos a Hacienda) en los
+dos y exige que den exactamente el mismo resultado, textos incluidos.
 
 ## Desarrollo
 

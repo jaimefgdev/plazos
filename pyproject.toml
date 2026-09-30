@@ -5,14 +5,14 @@ build-backend = "hatchling.build"
 [project]
 name = "plazos"
 version = "0.3.0"
-description = "Cálculo de plazos administrativos y judiciales españoles con la explicación y la norma de cada paso"
+description = "Plazos administrativos, judiciales y de pago a Hacienda en España, con la explicación y la norma de cada paso"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Jaime Fernández González", email = "jaime@jaimefgdev.com" }]
 requires-python = ">=3.10"
 dependencies = ["holidays>=0.60"]
-keywords = ["plazos", "días hábiles", "Ley 39/2015", "LEC", "LOPJ", "festivos", "España", "legal", "calendario"]
+keywords = ["plazos", "días hábiles", "Ley 39/2015", "LEC", "LOPJ", "LGT", "festivos", "fiestas locales", "España", "legal", "calendario"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Legal Industry",
