@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
 from . import normas as N
-from .calendario import CCAA, Calendario, Lugar, fiestas_locales, fuente_locales
+from .calendario import CCAA, Calendario, Lugar, municipio_datos
 
 JURISDICCIONES = ("administrativo", "civil", "contencioso", "social")
 UNIDADES = ("dias", "dias_naturales", "meses", "anios")
@@ -153,6 +153,7 @@ def calcular(
     festivos_locales: Iterable[date] = (),
     municipio: str | None = None,
     isla: str | None = None,
+    provincia: str | None = None,
     lugares: Iterable[Lugar] = (),
     urgente: bool = False,
 ) -> Resultado:
@@ -177,8 +178,8 @@ def calcular(
         raise ValueError("'urgente' solo se aplica a plazos judiciales")
 
     lista = list(lugares)
-    if ccaa or festivos_locales or municipio or isla:
-        lista.insert(0, Lugar(ccaa, tuple(festivos_locales), isla, municipio))
+    if ccaa or festivos_locales or municipio or isla or provincia:
+        lista.insert(0, Lugar(ccaa, tuple(festivos_locales), isla, municipio, provincia))
     cal = Calendario(lista)
     reglas = _Reglas(jurisdiccion, cal, urgente)
     pasos: list[Paso] = []
@@ -242,11 +243,10 @@ def calcular(
     if not any(lugar.ccaa for lugar in cal.lugares):
         avisos.append("No se ha indicado comunidad autónoma: solo se descuentan los festivos nacionales.")
     for lugar in cal.lugares:
-        locales = fiestas_locales(lugar.municipio, inicio.year) if lugar.municipio else None
-        fuente = fuente_locales(lugar.ccaa, inicio.year) if lugar.ccaa else None
-        if locales and fuente:
-            dias = ", ".join(f"{d:%d/%m}" for d in locales)
-            paso(f"Fiestas locales de {lugar.municipio} en {inicio.year} ({dias}), según {fuente[0]}")
+        datos = municipio_datos(lugar, inicio.year)
+        if datos:
+            dias = ", ".join(f"{d:%d/%m}" for d in datos.dias) or "ninguna para todo el término"
+            paso(f"Fiestas locales de {lugar.municipio} en {inicio.year} ({dias}), según {datos.fuente}")
 
     # 2) Cómputo.
     inicio_computo = inicio + timedelta(days=1)
@@ -353,11 +353,21 @@ def calcular(
             norma_gracia,
         )
 
+    limite = presentacion.date() if presentacion else vencimiento
+    for lugar in cal.lugares:
+        for anio in sorted({inicio.year, limite.year}):
+            datos = municipio_datos(lugar, anio)
+            for p in datos.parciales if datos else ():
+                if inicio < p.fecha <= limite and not reglas.inhabil(p.fecha):
+                    avisos.append(
+                        f"En {p.ambito} ({lugar.municipio}) también es fiesta local el {p.fecha:%d/%m/%Y}: "
+                        "si el plazo corre allí, ese día no cuenta y vencerá más tarde."
+                    )
     for anio in sorted({inicio.year, vencimiento.year}):
         if not cal.locales_conocidos(anio):
             avisos.append(
                 f"Faltan los festivos locales de {anio}: si el plazo cruza alguno, vencerá más "
-                "tarde de lo calculado aquí. Indica el municipio (capitales de provincia) o los días."
+                "tarde de lo calculado aquí. Indica el municipio o sus fiestas locales."
             )
         if not Calendario.es_oficial(anio):
             avisos.append(

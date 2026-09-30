@@ -34,8 +34,9 @@ def main(argv: list[str] | None = None) -> int:
         "--local", action="append", type=_fecha, default=[], metavar="FECHA", help="festivo local; repetible"
     )
     parser.add_argument(
-        "--municipio", help="municipio; en las 50 capitales de provincia se añaden solos sus festivos locales"
+        "--municipio", help="municipio o código INE: se añaden solas sus fiestas locales (7.390 municipios en 2026)"
     )
+    parser.add_argument("--provincia", help="provincia, si hay varios municipios con el mismo nombre")
     parser.add_argument("--isla", help="isla, para los festivos insulares de Canarias")
     parser.add_argument(
         "--urgente", action="store_true", help="actuación urgente: agosto y del 24-12 al 6-1 son hábiles"
@@ -53,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
             ccaa=args.ccaa,
             festivos_locales=args.local,
             municipio=args.municipio,
+            provincia=args.provincia,
             isla=args.isla,
             urgente=args.urgente,
         )

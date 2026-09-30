@@ -8,3 +8,7 @@ build/
 *.egg-info/
 .venv/
 node_modules/
+herramientas/municipios_2026/boletines/
+herramientas/municipios_2026/salida/
+herramientas/municipios_2026/ine.json
+herramientas/municipios_2026/ine.xlsx

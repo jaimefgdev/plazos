@@ -9,8 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from plazos import calcular
-from plazos.datos import locales_2026
+from plazos import calcular, municipios
 
 WEB = Path(__file__).resolve().parents[1] / "web"
 NODE = shutil.which("node")
@@ -18,6 +17,7 @@ NODE = shutil.which("node")
 EJECUTOR = """
 const fs = require("fs");
 require(process.argv[2]);
+globalThis.PLAZOS_MUNICIPIOS = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
 const Plazos = require(process.argv[3]);
 const casos = JSON.parse(fs.readFileSync(0, "utf8"));
 const salida = casos.map((c) => {
@@ -38,7 +38,7 @@ process.stdout.write(JSON.stringify(salida));
 
 def _casos(n: int) -> list[dict]:
     azar = random.Random(20260930)
-    capitales = [c[0] for c in locales_2026.CAPITALES.values()]
+    codigos = sorted(m.ine for m in municipios.todos(2026))
     casos = []
     for _ in range(n):
         j = azar.choice(["administrativo", "civil", "contencioso", "social"])
@@ -54,7 +54,7 @@ def _casos(n: int) -> list[dict]:
         }
         eleccion = azar.random()
         if eleccion < 0.5:
-            caso["municipio"] = azar.choice(capitales)
+            caso["municipio"] = azar.choice(codigos)
         elif eleccion < 0.8:
             caso["ccaa"] = azar.choice(["AN", "CT", "MD", "PV", "VC", "CN", "NC", "GA"])
             if azar.random() < 0.5:
@@ -107,7 +107,7 @@ def test_web_coincide_con_python(tmp_path):
     script = tmp_path / "ejecutar.js"
     script.write_text(EJECUTOR, encoding="utf-8")
     salida = subprocess.run(
-        [NODE, str(script), str(datos), str(WEB / "plazos.js")],
+        [NODE, str(script), str(datos), str(WEB / "plazos.js"), str(datos.with_name("municipios.json"))],
         input=json.dumps(casos),
         capture_output=True,
         text=True,

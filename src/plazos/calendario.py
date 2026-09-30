@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import unicodedata
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
@@ -10,7 +10,8 @@ from functools import cache
 
 import holidays
 
-from .datos import boe_2026, locales_2026
+from . import municipios
+from .datos import boe_2026
 
 CCAA = {
     "AN": "Andalucía",
@@ -36,41 +37,18 @@ CCAA = {
 
 # Años cuyo calendario nacional y autonómico viene del BOE, no de la librería holidays.
 OFICIALES = {2026: boe_2026}
-# Años con fiestas locales de las capitales de provincia sacadas de los boletines oficiales.
-LOCALES = {2026: locales_2026}
 
 
-def _normalizar(texto: str) -> str:
-    sin_tildes = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn")
-    return " ".join(sin_tildes.lower().replace("’", "'").split())
-
-
-def capital(nombre: str) -> tuple[str, str, str | None] | None:
-    """(nombre oficial, comunidad, isla) si ``nombre`` es una capital con datos, o ``None``."""
-    clave = _normalizar(nombre)
-    for datos in LOCALES.values():
-        clave = datos.ALIAS.get(clave, clave)
-        if clave in datos.CAPITALES:
-            oficial, ccaa, isla, _ = datos.CAPITALES[clave]
-            return oficial, ccaa, isla
-    return None
-
-
-def fiestas_locales(nombre: str, anio: int) -> tuple[date, ...] | None:
-    """Fiestas locales oficiales de una capital en ``anio``, o ``None`` si no hay datos."""
-    datos = LOCALES.get(anio)
-    if datos is None:
+def municipio_datos(lugar: Lugar, anio: int) -> municipios.Municipio | None:
+    """Datos oficiales del municipio del lugar para ``anio`` (``None`` si no los hay)."""
+    if not lugar.municipio:
         return None
-    clave = _normalizar(nombre)
-    clave = datos.ALIAS.get(clave, clave)
-    if clave not in datos.CAPITALES:
-        return None
-    return tuple(date(anio, m, d) for m, d in datos.CAPITALES[clave][3])
+    return municipios.buscar(lugar.ine or lugar.municipio, anio, lugar.ccaa, lugar.provincia)
 
 
-def fuente_locales(ccaa: str, anio: int) -> tuple[str, str] | None:
-    datos = LOCALES.get(anio)
-    return datos.FUENTES.get(ccaa) if datos else None
+def fiestas_locales(lugar: Lugar, anio: int) -> tuple[date, ...] | None:
+    m = municipio_datos(lugar, anio)
+    return m.dias if m else None
 
 
 @dataclass(frozen=True)
@@ -81,17 +59,28 @@ class Lugar:
     festivos_locales: tuple[date, ...] = field(default=())
     isla: str | None = None
     municipio: str | None = None
+    provincia: str | None = None
+    ine: str | None = field(default=None, compare=False)
 
     def __post_init__(self) -> None:
-        conocida = capital(self.municipio) if self.municipio else None
-        if conocida:
-            oficial, ccaa, isla = conocida
-            if self.ccaa is not None and self.ccaa != ccaa:
-                raise ValueError(f"{oficial} está en {CCAA[ccaa]} ({ccaa}), no en {self.ccaa}")
-            object.__setattr__(self, "municipio", oficial)
-            object.__setattr__(self, "ccaa", ccaa)
-            if self.isla is None:
-                object.__setattr__(self, "isla", isla)
+        conocido = None
+        if self.municipio:
+            for anio in municipios.ANIOS:
+                conocido = municipios.buscar(self.municipio, anio, self.ccaa, self.provincia)
+                if conocido:
+                    break
+        if self.municipio and conocido is None and self.ccaa:
+            # Existe, pero en otra comunidad: mejor avisar que ignorarlo en silencio.
+            otro = municipios.buscar(self.municipio)
+            if otro and otro.ccaa != self.ccaa and not re.fullmatch(r"\d{5}", self.municipio.strip()):
+                raise ValueError(f"{otro.nombre_legible} está en {CCAA[otro.ccaa]} ({otro.ccaa}), no en {self.ccaa}")
+        if conocido:
+            object.__setattr__(self, "municipio", conocido.nombre_legible)
+            object.__setattr__(self, "ine", conocido.ine)
+            object.__setattr__(self, "ccaa", conocido.ccaa)
+            object.__setattr__(self, "provincia", conocido.provincia)
+            if self.isla is None and conocido.isla:
+                object.__setattr__(self, "isla", conocido.isla)
         if self.ccaa is not None and self.ccaa not in CCAA:
             raise ValueError(f"Comunidad desconocida: {self.ccaa!r}. Usa uno de: {', '.join(CCAA)}")
         if self.isla is not None:
@@ -129,7 +118,7 @@ class Calendario:
         """Si todos los lugares tienen sus fiestas locales de ``anio`` (dadas o incluidas)."""
         return all(
             (lugar.festivos_locales and any(d.year == anio for d in lugar.festivos_locales))
-            or (lugar.municipio and fiestas_locales(lugar.municipio, anio) is not None)
+            or municipio_datos(lugar, anio) is not None
             for lugar in self.lugares
         )
 
@@ -157,7 +146,7 @@ class Calendario:
             and OFICIALES[d.year].INSULARES_CANARIAS[lugar.isla] == (d.month, d.day)
         ):
             motivos.append(f"festivo insular en {lugar.isla}")
-        oficiales = fiestas_locales(lugar.municipio, d.year) if lugar.municipio else None
+        oficiales = fiestas_locales(lugar, d.year)
         if d in lugar.festivos_locales or (oficiales and d in oficiales):
             motivos.append("festivo local" + (f" en {lugar.municipio}" if lugar.municipio else ""))
         return motivos

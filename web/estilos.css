@@ -120,7 +120,7 @@ form.panel { display: grid; gap: 18px; position: sticky; top: 16px; }
 .fila-fechas { grid-template-columns: minmax(0, 150px) minmax(0, 1fr); }
 @media (max-width: 420px) { .fila-fechas { grid-template-columns: minmax(0, 1fr); } }
 
-input[type="date"], input[type="number"], select {
+input[type="date"], input[type="number"], input[type="search"], select {
   width: 100%; background: var(--superficie); color: var(--texto); border: 1px solid var(--borde-medio);
   border-radius: 6px; padding: 10px 12px; font: 0.95rem var(--sans); min-height: 44px;
 }

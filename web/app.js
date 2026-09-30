@@ -5,7 +5,10 @@
   const P = globalThis.Plazos;
   const $ = (id) => document.getElementById(id);
   const ANIO_DATOS = String(D.oficiales[D.oficiales.length - 1]);
-  const OTRO = "__otro__";
+  // Etiqueta visible en el buscador («Nombre (Provincia)») -> código INE, y al revés.
+  const ETIQUETA_A_INE = new Map();
+  const INE_A_ETIQUETA = new Map();
+  let municipiosListos = false;
   const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
     "octubre", "noviembre", "diciembre"];
   const TEXTO_URGENTE = {
@@ -26,18 +29,6 @@
   }
 
   function rellenar() {
-    const mun = $("municipio");
-    const porCcaa = {};
-    for (const c of D.capitales[ANIO_DATOS]) (porCcaa[c.ccaa] ||= []).push(c);
-    const ordenadas = Object.keys(porCcaa).sort((a, b) => D.ccaa[a].localeCompare(D.ccaa[b], "es"));
-    for (const cc of ordenadas) {
-      const g = document.createElement("optgroup");
-      g.label = D.ccaa[cc];
-      porCcaa[cc].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).forEach((c) => g.append(opcion(c.nombre, c.nombre)));
-      mun.append(g);
-    }
-    mun.append(opcion(OTRO, "Otro municipio…"));
-
     const nombres = Object.keys(D.ccaa).sort((a, b) => D.ccaa[a].localeCompare(D.ccaa[b], "es"));
     $("ccaa").append(opcion("", "Ninguna (solo festivos nacionales)"));
     $("ccaa-sede").append(opcion("", "La misma que la mía"));
@@ -50,10 +41,29 @@
     $("version").textContent = `plazos ${D.version}`;
   }
 
+  function cargarMunicipios(M) {
+    globalThis.PLAZOS_MUNICIPIOS = M;
+    const repetidos = new Map();
+    for (const f of M.municipios) repetidos.set(f[1], (repetidos.get(f[1]) || 0) + 1);
+    const lista = $("lista-municipios");
+    const opciones = [];
+    for (const f of M.municipios) {
+      const etiqueta = repetidos.get(f[1]) > 1 || f[1] !== f[3] ? `${f[1]} (${f[3]})` : f[1];
+      ETIQUETA_A_INE.set(etiqueta, f[0]);
+      INE_A_ETIQUETA.set(f[0], etiqueta);
+      opciones.push(etiqueta);
+    }
+    opciones.sort((a, b) => a.localeCompare(b, "es"));
+    lista.replaceChildren(...opciones.map((e) => { const o = document.createElement("option"); o.value = e; return o; }));
+    municipiosListos = true;
+  }
+
+  const ineElegido = () => ETIQUETA_A_INE.get($("municipio").value.trim()) || null;
+
   // --- Estado <-> formulario <-> URL -----------------------------------------
   function leer() {
     const jurisdiccion = document.querySelector('input[name="jurisdiccion"]:checked').value;
-    const municipio = $("municipio").value;
+    const municipio = ineElegido();
     const estado = {
       jurisdiccion,
       inicio: $("inicio").value,
@@ -61,7 +71,7 @@
       unidad: $("unidad").value,
       urgente: jurisdiccion !== "administrativo" && $("urgente").checked,
     };
-    if (municipio === OTRO) {
+    if (!municipio) {
       estado.ccaa = $("ccaa").value || null;
       if (estado.ccaa === "CN" && $("isla").value) estado.isla = $("isla").value;
       estado.festivosLocales = [...locales].sort();
@@ -95,10 +105,10 @@
     $("inicio").value = p.get("i");
     $("cantidad").value = p.get("n") || "10";
     $("unidad").value = p.get("u") || "dias";
-    if (p.has("m") && [...$("municipio").options].some((o) => o.value === p.get("m"))) {
-      $("municipio").value = p.get("m");
+    if (p.has("m") && INE_A_ETIQUETA.has(p.get("m"))) {
+      $("municipio").value = INE_A_ETIQUETA.get(p.get("m"));
     } else {
-      $("municipio").value = OTRO;
+      $("municipio").value = "";
       $("ccaa").value = p.get("c") || "";
       $("isla").value = p.get("isla") || "";
       (p.get("l") || "").split(",").filter(Boolean).forEach((f) => locales.add(f));
@@ -118,9 +128,23 @@
     $("campo-urgente").hidden = !judicial;
     if (judicial) $("texto-urgente").textContent = TEXTO_URGENTE[j];
     $("campo-sede").hidden = judicial;
-    const otro = $("municipio").value === OTRO;
+    const ine = ineElegido();
+    const otro = municipiosListos && !ine;
     $("otro-lugar").hidden = !otro;
-    $("ayuda-municipio").hidden = otro;
+    const ayuda = $("ayuda-municipio");
+    if (!municipiosListos) {
+      ayuda.textContent = "Cargando las fiestas locales de los municipios…";
+    } else if (ine) {
+      const m = P.municipioDatos(ine, Number(D.aniosMunicipios[D.aniosMunicipios.length - 1]));
+      const dias = m.dias.map((x) => `${x.slice(8, 10)}/${x.slice(5, 7)}`).join(" y ") || "sin fiestas comunes a todo el término";
+      ayuda.textContent = `Fiestas locales de ${m.anio}: ${dias}` +
+        (m.parciales.length ? `, y otras en ${m.parciales.length === 1 ? "una zona" : "algunas zonas"} del municipio.` : ".") +
+        ` Fuente: ${m.fuente.texto}.`;
+    } else {
+      ayuda.textContent = $("municipio").value.trim()
+        ? "No encuentro ese municipio en la lista: elige la comunidad y añade sus fiestas locales."
+        : "Escribe y elige tu municipio de la lista. Si no aparece, indica la comunidad y sus fiestas locales.";
+    }
     $("campo-isla").hidden = !(otro && $("ccaa").value === "CN");
     const fichas = $("locales");
     fichas.replaceChildren(...[...locales].sort().map((f) => {
@@ -282,6 +306,7 @@
 
   function actualizar() {
     ajustar();
+    if (!municipiosListos) return;
     const e = leer();
     const error = $("error");
     try {
@@ -342,12 +367,18 @@
 
   // --- Arranque ---------------------------------------------------------------
   rellenar();
-  if (!desdeUrl()) {
-    const hoy = new Date();
-    const iso = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())).toISOString().slice(0, 10);
-    $("inicio").value = iso < "2025-01-01" || iso > "2028-12-31" ? "2026-07-20" : iso;
-    $("municipio").value = "Madrid";
-  }
+  const hoy = new Date();
+  const hoyIso = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())).toISOString().slice(0, 10);
+  $("inicio").value = hoyIso < "2025-01-01" || hoyIso > "2028-12-31" ? "2026-07-20" : hoyIso;
+  ajustar();
+  fetch("municipios.json")
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
+    .then(cargarMunicipios)
+    .catch(() => { municipiosListos = true; })  // sin fiestas locales precargadas: se piden a mano
+    .finally(() => {
+      if (!desdeUrl()) $("municipio").value = INE_A_ETIQUETA.get("28079") || "";
+      actualizar();
+    });
   $("formulario").addEventListener("input", actualizar);
   $("formulario").addEventListener("change", actualizar);
   $("campo-sede").addEventListener("toggle", actualizar);
@@ -359,6 +390,5 @@
   $("copiar").addEventListener("click", () => ultimo && copiar(explicacion(ultimo), "Explicación copiada"));
   $("enlace").addEventListener("click", () => copiar(location.href, "Enlace copiado"));
   $("ics").addEventListener("click", () => ultimo && ics(ultimo));
-  window.addEventListener("hashchange", () => { if (desdeUrl()) actualizar(); });
-  actualizar();
+  window.addEventListener("hashchange", () => { if (municipiosListos && desdeUrl()) actualizar(); });
 })();

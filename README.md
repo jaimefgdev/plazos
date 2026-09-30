@@ -44,8 +44,28 @@ Vence el martes, 15 de septiembre de 2026.
 
 - **Festivos nacionales y autonómicos de 2026** tomados del anexo de la
   [Resolución BOE-A-2025-23702](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-23702), incluidos los insulares de Canarias. Para otros años se usa la librería [holidays](https://pypi.org/project/holidays/) y el resultado lo advierte.
-- **Fiestas locales de 2026 de las 50 capitales de provincia**, cada una sacada del boletín oficial de su comunidad o provincia, con sus modificaciones posteriores (por ejemplo, Bilbao pasó del 21 al 28 de agosto). La fuente sale en la explicación.
-- Para cualquier otro municipio puedes pasar sus fiestas locales con `festivos_locales=[...]`.
+- **Fiestas locales de 2026 de 7.390 municipios** (el 91 % de los 8.132 de España), sacadas de los
+  boletines oficiales de las 17 comunidades, de las 9 provincias de Castilla y León y de Ceuta y
+  Melilla, con sus correcciones y resoluciones complementarias (por ejemplo, Bilbao pasó del 21 al
+  28 de agosto). Los que faltan son ayuntamientos que no comunicaron sus fiestas a tiempo. La fuente
+  sale en la explicación.
+- **Fiestas de pedanías, parroquias y entidades locales menores**: si en parte del municipio hay
+  otra fiesta local (Raimat en Lleida, las parroquias de Llanes…), el resultado lo avisa si cae
+  dentro del plazo.
+- En Canarias, el municipio decide también la fiesta insular (Arucas → Gran Canaria).
+- Para un municipio sin datos puedes pasar sus fiestas locales con `festivos_locales=[...]`.
+
+| | Municipios con datos | | Municipios con datos |
+|---|---|---|---|
+| Andalucía | 756 de 785 | Comunitat Valenciana | 539 de 542 |
+| Aragón | 581 de 731 | Extremadura | 388 de 388 |
+| Asturias | 78 de 78 | Galicia | 313 de 313 |
+| Canarias | 88 de 88 | Illes Balears | 67 de 67 |
+| Cantabria | 102 de 102 | La Rioja | 163 de 174 |
+| Castilla y León | 1.832 de 2.248 | Madrid | 171 de 179 |
+| Castilla-La Mancha | 905 de 919 | Murcia | 45 de 45 |
+| Cataluña | 886 de 947 | Navarra | 229 de 272 |
+| Ceuta y Melilla | 2 de 2 | País Vasco | 245 de 252 |
 
 ## Instalación
 
@@ -65,7 +85,11 @@ from plazos import Lugar, calcular
 calcular(date(2026, 7, 20), 2, "meses", "contencioso", municipio="Sevilla").vencimiento
 # -> 2026-10-20
 
-# Municipio que no es capital: comunidad y fiestas locales a mano (fechas de ejemplo).
+# Cualquier municipio, por nombre o por código INE; si el nombre se repite, con la provincia.
+calcular(date(2026, 7, 23), 5, municipio="Begíjar")
+calcular(date(2026, 7, 23), 5, municipio="Villanueva de la Sierra", provincia="Cáceres")
+
+# Municipio sin datos: comunidad y fiestas locales a mano (fechas de ejemplo).
 calcular(date(2026, 5, 14), 10, ccaa="MD", festivos_locales=[date(2026, 5, 20), date(2026, 9, 8)])
 
 # Interesado en Valencia y órgano en Madrid: cuenta como inhábil lo que lo sea en cualquiera.
@@ -118,7 +142,9 @@ ruff check . && ruff format --check . && mypy
 ```
 
 Cada año hay que añadir el calendario nuevo en `src/plazos/datos/`: el anexo de la resolución del BOE
-y las fiestas locales de las capitales, y volver a generar `web/datos.js`.
+y las fiestas locales de los municipios (los lectores de boletines están en
+[`herramientas/municipios_2026/`](herramientas/municipios_2026/LEEME.md)), y volver a generar
+`web/datos.js` y `web/municipios.json`.
 
 ## Aviso
 

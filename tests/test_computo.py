@@ -233,7 +233,7 @@ def test_cincuenta_capitales():
 
 
 def test_municipio_desconocido_avisa():
-    r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="Alcobendas")
+    r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="La Hiruela")  # no comunicó sus fiestas
     assert any("Faltan los festivos locales" in a for a in r.advertencias)
 
 
@@ -246,3 +246,63 @@ def test_nombres_en_espanol_aunque_el_sistema_este_en_ingles(monkeypatch):
         assert "(Año Nuevo)" in Calendario([Lugar("MD")]).festivo(date(2027, 1, 1))
     finally:
         calendario._nombres.cache_clear()
+
+
+# --- Todos los municipios -------------------------------------------------------------
+
+
+def test_cobertura_municipios():
+    from plazos import municipios
+
+    todos = municipios.todos(2026)
+    assert len(todos) >= 7300
+    assert {m.ccaa for m in todos} == set(__import__("plazos").CCAA)
+
+
+def test_capitales_coinciden_con_la_verificacion_manual():
+    from plazos import municipios
+    from plazos.datos import locales_2026 as L
+
+    for nombre, ccaa, _, dias in L.CAPITALES.values():
+        m = municipios.buscar(nombre, ccaa=ccaa)
+        assert m is not None, nombre
+        assert m.dias == tuple(date(2026, mes, dia) for mes, dia in dias), nombre
+
+
+def test_municipio_pequeno():
+    # Begíjar (Jaén): 24 de julio y 25 de septiembre (BOJA n.º 197).
+    r = calcular(date(2026, 7, 23), 1, municipio="Begíjar")
+    assert r.vencimiento == date(2026, 7, 27)
+    assert any("BOJA" in str(p) for p in r.pasos)
+
+
+def test_codigo_ine():
+    assert calcular(date(2026, 5, 14), 1, municipio="28079").vencimiento == date(2026, 5, 18)
+
+
+def test_ceuta_y_melilla():
+    assert calcular(date(2026, 3, 19), 1, municipio="Ceuta").vencimiento == date(2026, 3, 23)
+    assert calcular(date(2026, 9, 16), 1, municipio="Melilla").vencimiento == date(2026, 9, 18)
+
+
+def test_isla_desde_el_municipio():
+    # Arucas está en Gran Canaria: el 8 de septiembre (Virgen del Pino) es festivo insular.
+    assert calcular(date(2026, 9, 7), 1, municipio="Arucas").vencimiento == date(2026, 9, 9)
+
+
+def test_fiesta_de_una_pedania_avisa():
+    r = calcular(date(2026, 4, 24), 3, municipio="Lleida")
+    assert r.vencimiento == date(2026, 4, 29)  # el 27-4 solo es fiesta en Raimat
+    assert any("Raimat" in a for a in r.advertencias)
+
+
+def test_nombre_repetido_pide_provincia():
+    from plazos import municipios
+
+    repetidos = {}
+    for m in municipios.todos(2026):
+        repetidos.setdefault(m.nombre, []).append(m)
+    nombre, lista = next((n, v) for n, v in repetidos.items() if len({m.provincia for m in v}) > 1)
+    with pytest.raises(ValueError, match="provincia"):
+        municipios.buscar(nombre)
+    assert municipios.buscar(nombre, provincia=lista[0].provincia).ine == lista[0].ine

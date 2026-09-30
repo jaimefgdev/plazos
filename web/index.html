@@ -65,9 +65,11 @@
         </div>
 
         <div class="campo">
-          <label for="municipio">Dónde</label>
-          <select id="municipio"></select>
-          <p class="ayuda" id="ayuda-municipio">Las 50 capitales llevan ya sus dos fiestas locales de 2026.</p>
+          <label for="municipio">Municipio</label>
+          <input id="municipio" type="search" list="lista-municipios" autocomplete="off" spellcheck="false"
+            placeholder="Escribe tu municipio…">
+          <datalist id="lista-municipios"></datalist>
+          <p class="ayuda" id="ayuda-municipio" aria-live="polite">Cargando las fiestas locales de los municipios…</p>
         </div>
 
         <div id="otro-lugar" class="subpanel" hidden>
@@ -145,7 +147,7 @@
         oficial y la norma de tu caso concreto: hay plazos con reglas propias (tributarios, penales, de caducidad…)
         que aquí no se tratan. Los festivos nacionales y autonómicos de 2026 salen del
         <a id="enlace-boe" href="https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-23702">BOE-A-2025-23702</a> y los
-        locales de las capitales, del boletín de cada comunidad o provincia. El cálculo se hace en tu navegador:
+        locales de 7.390 municipios, del boletín de cada comunidad o provincia (con sus correcciones posteriores). El cálculo se hace en tu navegador:
         no se envía ningún dato.</p>
       <p>Código abierto con licencia MIT: <a href="https://github.com/jaimefgdev/plazos">github.com/jaimefgdev/plazos</a> ·
         <code>pip install plazos</code></p>

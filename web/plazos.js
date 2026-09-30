@@ -50,36 +50,53 @@
   const normalizar = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/’/g, "'").split(/\s+/).filter(Boolean).join(" ");
 
-  function capital(nombre) {
-    if (!nombre) return null;
-    const clave = normalizar(nombre);
-    for (const lista of Object.values(DATOS.capitales)) {
-      const c = lista.find((x) => normalizar(x.nombre) === clave);
-      if (c) return c;
+  // Fiestas locales de los municipios (web/municipios.json, que la página carga al empezar).
+  // Cada fila: [INE, nombre, comunidad, provincia, isla, días, parciales, fuente, año].
+  let INDICE = null;
+  function indice() {
+    const M = raiz.PLAZOS_MUNICIPIOS;
+    if (!M) return null;
+    if (!INDICE || INDICE.origen !== M) {
+      INDICE = { origen: M, porIne: new Map(), porNombre: new Map() };
+      for (const f of M.municipios) {
+        const m = {
+          ine: f[0], nombre: f[1], ccaa: f[2], provincia: f[3], isla: f[4] || null, dias: f[5],
+          parciales: f[6].map(([fecha, ambito]) => ({ fecha, ambito })), fuente: M.fuentes[f[7]], anio: f[8],
+        };
+        INDICE.porIne.set(`${m.anio}:${m.ine}`, m);
+        const k = normalizar(m.nombre);
+        if (!INDICE.porNombre.has(k)) INDICE.porNombre.set(k, []);
+        INDICE.porNombre.get(k).push(m);
+      }
     }
-    return null;
+    return INDICE;
   }
 
-  function fiestasLocales(nombre, a) {
-    const lista = DATOS.capitales[String(a)];
-    if (!lista || !nombre) return null;
-    const c = lista.find((x) => normalizar(x.nombre) === normalizar(nombre));
-    return c ? c.dias.map(deIso) : null;
+  function municipioDatos(ref, a) {
+    const idx = indice();
+    if (!idx || !ref) return null;
+    if (/^\d{5}$/.test(ref)) return idx.porIne.get(`${a}:${ref}`) || null;
+    const c = (idx.porNombre.get(normalizar(ref)) || []).filter((m) => m.anio === a);
+    return c.length === 1 ? c[0] : null;
   }
 
   function crearLugar({ ccaa = null, festivosLocales = [], isla = null, municipio = null } = {}) {
-    const c = capital(municipio);
+    let ine = null;
+    const c = municipio ? (raiz.PLAZOS_DATOS.aniosMunicipios || []).map((a) => municipioDatos(municipio, a)).find(Boolean) : null;
     if (c) {
       if (ccaa && ccaa !== c.ccaa) throw new Error(`${c.nombre} está en ${DATOS.ccaa[c.ccaa]} (${c.ccaa}), no en ${ccaa}`);
       municipio = c.nombre;
+      ine = c.ine;
       ccaa = c.ccaa;
       if (!isla) isla = c.isla;
     }
     if (ccaa && !DATOS.ccaa[ccaa]) throw new Error(`Comunidad desconocida: ${ccaa}`);
     if (isla && ccaa !== "CN") throw new Error("La isla solo se indica para Canarias");
     const unicos = [...new Set(festivosLocales.map((f) => (typeof f === "string" ? f : iso(f))))].sort();
-    return { ccaa, isla, municipio, festivosLocales: unicos.map(deIso) };
+    return { ccaa, isla, municipio, ine, festivosLocales: unicos.map(deIso) };
   }
+
+  const datosLugar = (l, a) => (l.municipio ? municipioDatos(l.ine || l.municipio, a) : null);
 
   function motivosLugar(f, lugar) {
     const motivos = [];
@@ -89,9 +106,9 @@
     else if (lugar.ccaa && (anual[lugar.ccaa] || {})[clave]) motivos.push(anual[lugar.ccaa][clave]);
     const insulares = DATOS.insulares[String(anio(f))];
     if (lugar.isla && insulares && insulares[lugar.isla] === clave) motivos.push(`festivo insular en ${lugar.isla}`);
-    const oficiales = lugar.municipio ? fiestasLocales(lugar.municipio, anio(f)) : null;
+    const oficiales = datosLugar(lugar, anio(f));
     const esLocal = lugar.festivosLocales.some((x) => iso(x) === clave) ||
-      (oficiales && oficiales.some((x) => iso(x) === clave));
+      Boolean(oficiales && oficiales.dias.includes(clave));
     if (esLocal) motivos.push("festivo local" + (lugar.municipio ? ` en ${lugar.municipio}` : ""));
     return motivos;
   }
@@ -104,7 +121,7 @@
 
   function localesConocidos(lugares, a) {
     return lugares.every((l) => (l.festivosLocales.length && l.festivosLocales.some((x) => anio(x) === a)) ||
-      (l.municipio && fiestasLocales(l.municipio, a) !== null));
+      datosLugar(l, a) !== null);
   }
 
   // --- Reglas de días inhábiles ------------------------------------------------
@@ -230,11 +247,10 @@
       avisos.push("No se ha indicado comunidad autónoma: solo se descuentan los festivos nacionales.");
     }
     for (const l of lugares) {
-      const locales = l.municipio ? fiestasLocales(l.municipio, anio(inicio)) : null;
-      const fuente = l.ccaa ? (DATOS.fuentes[String(anio(inicio))] || {})[l.ccaa] : null;
-      if (locales && fuente) {
-        paso(`Fiestas locales de ${l.municipio} en ${anio(inicio)} (${locales.map(ddmm).join(", ")}), ` +
-          `según ${fuente.texto}`);
+      const d = datosLugar(l, anio(inicio));
+      if (d) {
+        const dias = d.dias.map((x) => ddmm(deIso(x))).join(", ") || "ninguna para todo el término";
+        paso(`Fiestas locales de ${l.municipio} en ${anio(inicio)} (${dias}), según ${d.fuente.texto}`);
       }
     }
 
@@ -324,10 +340,23 @@
         jurisdiccion === "social" ? N.LRJS_45_1 : N.LEC_135_5);
     }
 
+    const limite = presentacion || vencimiento;
+    for (const l of lugares) {
+      for (const a of [...new Set([anio(inicio), anio(limite)])].sort()) {
+        const d = datosLugar(l, a);
+        for (const p of d ? d.parciales : []) {
+          const f = deIso(p.fecha);
+          if (inicio < f && f <= limite && !R.inhabil(f)) {
+            avisos.push(`En ${p.ambito} (${l.municipio}) también es fiesta local el ${ddmmaaaa(f)}: ` +
+              "si el plazo corre allí, ese día no cuenta y vencerá más tarde.");
+          }
+        }
+      }
+    }
     for (const a of [...new Set([anio(inicio), anio(vencimiento)])].sort()) {
       if (!localesConocidos(lugares, a)) {
         avisos.push(`Faltan los festivos locales de ${a}: si el plazo cruza alguno, vencerá más ` +
-          "tarde de lo calculado aquí. Indica el municipio (capitales de provincia) o los días.");
+          "tarde de lo calculado aquí. Indica el municipio o sus fiestas locales.");
       }
       if (!DATOS.oficiales.includes(a)) {
         avisos.push(`El calendario de festivos de ${a} no está verificado con el BOE en esta ` +
@@ -341,7 +370,7 @@
     };
   }
 
-  const api = { calcular, fechaLarga, iso, capital, JURISDICCIONES, UNIDADES };
+  const api = { calcular, fechaLarga, iso, municipioDatos, JURISDICCIONES, UNIDADES };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   raiz.Plazos = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);

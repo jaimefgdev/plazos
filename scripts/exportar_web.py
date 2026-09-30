@@ -18,9 +18,9 @@ sys.path.insert(0, str(RAIZ / "src"))
 
 import holidays  # noqa: E402
 
-from plazos import __version__  # noqa: E402
+from plazos import __version__, municipios  # noqa: E402
 from plazos import normas as N  # noqa: E402
-from plazos.calendario import CCAA, LOCALES, OFICIALES, Calendario, Lugar  # noqa: E402
+from plazos.calendario import CCAA, OFICIALES, Calendario, Lugar  # noqa: E402
 from plazos.datos import boe_2026  # noqa: E402
 
 ANIOS = range(2024, 2032)
@@ -53,14 +53,28 @@ def main(destino: Path | None = None) -> None:
             por_ccaa[cc] = propios
         festivos[str(anio)] = por_ccaa
 
-    capitales = {}
-    fuentes = {}
-    for anio, datos in LOCALES.items():
-        capitales[str(anio)] = [
-            {"nombre": n, "ccaa": cc, "isla": isla, "dias": [date(anio, m, d).isoformat() for m, d in ds]}
-            for n, cc, isla, ds in datos.CAPITALES.values()
-        ]
-        fuentes[str(anio)] = {cc: {"texto": t, "url": u} for cc, (t, u) in datos.FUENTES.items()}
+    # Fiestas locales de todos los municipios: fichero aparte que la web carga al empezar.
+    fuentes: dict[str, dict[str, str]] = {}
+    lista = []
+    for anio in municipios.ANIOS:
+        for m in sorted(municipios.todos(anio), key=lambda m: m.ine):
+            clave = fuentes.setdefault(m.fuente, {"texto": m.fuente, "url": m.url, "id": str(len(fuentes))})["id"]
+            lista.append(
+                [
+                    m.ine,
+                    m.nombre_legible,
+                    m.ccaa,
+                    m.provincia,
+                    m.isla or "",
+                    [d.isoformat() for d in m.dias],
+                    [[p.fecha.isoformat(), p.ambito] for p in m.parciales],
+                    int(clave),
+                    anio,
+                ]
+            )
+    mun = {"fuentes": [{"texto": f["texto"], "url": f["url"]} for f in fuentes.values()], "municipios": lista}
+    ruta_mun = (destino or RAIZ / "web" / "datos.js").with_name("municipios.json")
+    ruta_mun.write_text(json.dumps(mun, ensure_ascii=False, separators=(",", ":")), encoding="utf-8", newline="\n")
 
     insulares = {
         str(anio): {isla: date(anio, m, d).isoformat() for isla, (m, d) in datos.INSULARES_CANARIAS.items()}
@@ -76,8 +90,7 @@ def main(destino: Path | None = None) -> None:
         "boe": {"referencia": boe_2026.REFERENCIA, "url": boe_2026.URL},
         "festivos": festivos,
         "insulares": insulares,
-        "capitales": capitales,
-        "fuentes": fuentes,
+        "aniosMunicipios": list(municipios.ANIOS),
         "normas": normas,
     }
     destino = destino or RAIZ / "web" / "datos.js"
@@ -87,7 +100,7 @@ def main(destino: Path | None = None) -> None:
         encoding="utf-8",
         newline="\n",
     )
-    print(f"{destino.name}: {destino.stat().st_size // 1024} KB")
+    print(f"{destino.name}: {destino.stat().st_size // 1024} KB; municipios.json: {ruta_mun.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plazos"
-version = "0.1.0"
+version = "0.2.0"
 description = "Cálculo de plazos administrativos y judiciales españoles con la explicación y la norma de cada paso"
 readme = "README.md"
 license = "MIT"
@@ -49,6 +49,8 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
+# Lectores de boletines de un solo uso (ver herramientas/municipios_2026/LEEME.md).
+extend-exclude = ["herramientas"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
