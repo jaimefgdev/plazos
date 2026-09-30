@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plazos"
+version = "0.1.0"
+description = "Cálculo de plazos administrativos y judiciales españoles con la explicación y la norma de cada paso"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Jaime Fernández González", email = "jaime@jaimefgdev.com" }]
+requires-python = ">=3.10"
+dependencies = ["holidays>=0.60"]
+keywords = ["plazos", "días hábiles", "Ley 39/2015", "LEC", "LOPJ", "festivos", "España", "legal", "calendario"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Legal Industry",
+    "Intended Audience :: Developers",
+    "Natural Language :: Spanish",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://jaimefgdev.com/plazos/"
+Repository = "https://github.com/jaimefgdev/plazos"
+Issues = "https://github.com/jaimefgdev/plazos/issues"
+
+[project.scripts]
+plazos = "plazos.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = "holidays"
+ignore_missing_imports = true

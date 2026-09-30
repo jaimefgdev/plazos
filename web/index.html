@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculadora de plazos · días hábiles administrativos y judiciales</title>
+  <meta name="description" content="Calcula el vencimiento de plazos administrativos (Ley 39/2015) y judiciales (LEC, LJCA, LRJS) con festivos nacionales, autonómicos y locales de 2026, y la explicación de cada paso con su artículo.">
+  <link rel="canonical" href="https://jaimefgdev.com/plazos/">
+  <meta property="og:title" content="Calculadora de plazos">
+  <meta property="og:description" content="Vencimiento de plazos administrativos y judiciales con el porqué de cada día.">
+  <meta property="og:url" content="https://jaimefgdev.com/plazos/">
+  <meta name="theme-color" content="#050505">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23050505'/%3E%3Crect x='7' y='9' width='18' height='16' rx='2' fill='none' stroke='%23ff0033' stroke-width='2'/%3E%3Cpath d='M7 13h18M12 6v5M20 6v5' stroke='%23ff0033' stroke-width='2'/%3E%3Cpath d='M12 19l3 3 5-6' stroke='%23f0f0f0' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header class="cabecera">
+    <a class="marca" href="https://jaimefgdev.com/" aria-label="jaimefgdev.com">jaimefgdev<span>.com</span></a>
+    <nav>
+      <a href="https://github.com/jaimefgdev/plazos">Código</a>
+      <a href="https://pypi.org/project/plazos/">Librería Python</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="etiqueta">Ley 39/2015 · LEC · LJCA · LRJS</p>
+      <h1>Calculadora de plazos</h1>
+      <p class="entradilla">Dime cuándo te notificaron y cuánto dura el plazo. Te digo el día en que vence y
+        el porqué de cada día que no cuenta, con su artículo.</p>
+    </section>
+
+    <div class="rejilla">
+      <form id="formulario" class="panel" novalidate>
+        <fieldset class="campo">
+          <legend>Tipo de plazo</legend>
+          <div class="segmentos" role="radiogroup">
+            <label><input type="radio" name="jurisdiccion" value="administrativo" checked><span>Administrativo</span></label>
+            <label><input type="radio" name="jurisdiccion" value="civil"><span>Civil</span></label>
+            <label><input type="radio" name="jurisdiccion" value="contencioso"><span>Contencioso</span></label>
+            <label><input type="radio" name="jurisdiccion" value="social"><span>Social</span></label>
+          </div>
+        </fieldset>
+
+        <div class="fila fila-fechas">
+          <div class="campo">
+            <label for="inicio">Día de la notificación</label>
+            <input id="inicio" type="date" min="2025-01-01" max="2028-12-31" required>
+          </div>
+          <div class="campo duracion">
+            <label for="cantidad">Duración</label>
+            <div class="juntos">
+              <input id="cantidad" type="number" min="1" max="365" value="10" inputmode="numeric" required>
+              <select id="unidad" aria-label="Unidad">
+                <option value="dias">días hábiles</option>
+                <option value="dias_naturales">días naturales</option>
+                <option value="meses">meses</option>
+                <option value="anios">años</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="municipio">Dónde</label>
+          <select id="municipio"></select>
+          <p class="ayuda" id="ayuda-municipio">Las 50 capitales llevan ya sus dos fiestas locales de 2026.</p>
+        </div>
+
+        <div id="otro-lugar" class="subpanel" hidden>
+          <div class="fila">
+            <div class="campo">
+              <label for="ccaa">Comunidad autónoma</label>
+              <select id="ccaa"></select>
+            </div>
+            <div class="campo" id="campo-isla" hidden>
+              <label for="isla">Isla</label>
+              <select id="isla"></select>
+            </div>
+          </div>
+          <div class="campo">
+            <label for="nuevo-local">Fiestas locales del municipio</label>
+            <div class="juntos">
+              <input id="nuevo-local" type="date" min="2025-01-01" max="2031-12-31">
+              <button type="button" id="anadir-local" class="boton-sec">Añadir</button>
+            </div>
+            <ul id="locales" class="fichas" aria-live="polite"></ul>
+          </div>
+        </div>
+
+        <label class="casilla" id="campo-urgente" hidden>
+          <input type="checkbox" id="urgente">
+          <span id="texto-urgente"></span>
+        </label>
+
+        <details class="casilla-det" id="campo-sede">
+          <summary>El órgano está en otra comunidad</summary>
+          <p class="ayuda">Si un día es festivo en tu municipio o en la sede del órgano, no cuenta (art. 30.6).</p>
+          <label for="ccaa-sede" class="solo-lector">Comunidad de la sede</label>
+          <select id="ccaa-sede"></select>
+        </details>
+
+        <p id="error" class="error" role="alert" hidden></p>
+      </form>
+
+      <section class="resultado" aria-live="polite">
+        <div class="panel vencimiento" id="vencimiento">
+          <p class="etiqueta">Vence</p>
+          <p class="fecha-grande" id="fecha-vence">—</p>
+          <p class="hasta" id="hasta"></p>
+          <div class="acciones">
+            <button type="button" id="copiar" class="boton-sec">Copiar explicación</button>
+            <button type="button" id="ics" class="boton-sec">Añadir al calendario</button>
+            <button type="button" id="enlace" class="boton-sec">Copiar enlace</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="titulo-panel">
+            <h2>Día a día</h2>
+            <ul class="leyenda">
+              <li><i class="punto cuenta"></i>cuenta</li>
+              <li><i class="punto no"></i>no cuenta</li>
+              <li><i class="punto fin"></i>vencimiento</li>
+            </ul>
+          </div>
+          <div id="calendario" class="calendario"></div>
+          <p id="detalle-dia" class="detalle-dia">Toca un día para ver por qué no cuenta.</p>
+        </div>
+
+        <div class="panel">
+          <h2>Cómo se calcula</h2>
+          <ol id="pasos" class="pasos"></ol>
+          <ul id="avisos" class="avisos"></ul>
+        </div>
+      </section>
+    </div>
+
+    <section class="aviso-legal">
+      <h2>Antes de fiarte</h2>
+      <p>Es una herramienta orientativa y gratuita, no asesoramiento jurídico. Comprueba siempre el calendario
+        oficial y la norma de tu caso concreto: hay plazos con reglas propias (tributarios, penales, de caducidad…)
+        que aquí no se tratan. Los festivos nacionales y autonómicos de 2026 salen del
+        <a id="enlace-boe" href="https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-23702">BOE-A-2025-23702</a> y los
+        locales de las capitales, del boletín de cada comunidad o provincia. El cálculo se hace en tu navegador:
+        no se envía ningún dato.</p>
+      <p>Código abierto con licencia MIT: <a href="https://github.com/jaimefgdev/plazos">github.com/jaimefgdev/plazos</a> ·
+        <code>pip install plazos</code></p>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <span>Hecho por <a href="https://jaimefgdev.com/">Jaime Fernández</a></span>
+    <span id="version"></span>
+  </footer>
+
+  <script src="datos.js"></script>
+  <script src="plazos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+(function () {
+  "use strict";
+
+  const D = globalThis.PLAZOS_DATOS;
+  const P = globalThis.Plazos;
+  const $ = (id) => document.getElementById(id);
+  const ANIO_DATOS = String(D.oficiales[D.oficiales.length - 1]);
+  const OTRO = "__otro__";
+  const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
+    "octubre", "noviembre", "diciembre"];
+  const TEXTO_URGENTE = {
+    civil: "Actuación urgente (art. 131.2 LEC): agosto cuenta",
+    contencioso: "Protección de derechos fundamentales: agosto cuenta",
+    social: "Modalidad urgente del art. 43.4 LRJS (despido, vacaciones, conflicto colectivo…)",
+  };
+
+  const locales = new Set();
+  let ultimo = null;
+
+  // --- Opciones de los desplegables ------------------------------------------
+  function opcion(valor, texto) {
+    const o = document.createElement("option");
+    o.value = valor;
+    o.textContent = texto;
+    return o;
+  }
+
+  function rellenar() {
+    const mun = $("municipio");
+    const porCcaa = {};
+    for (const c of D.capitales[ANIO_DATOS]) (porCcaa[c.ccaa] ||= []).push(c);
+    const ordenadas = Object.keys(porCcaa).sort((a, b) => D.ccaa[a].localeCompare(D.ccaa[b], "es"));
+    for (const cc of ordenadas) {
+      const g = document.createElement("optgroup");
+      g.label = D.ccaa[cc];
+      porCcaa[cc].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).forEach((c) => g.append(opcion(c.nombre, c.nombre)));
+      mun.append(g);
+    }
+    mun.append(opcion(OTRO, "Otro municipio…"));
+
+    const nombres = Object.keys(D.ccaa).sort((a, b) => D.ccaa[a].localeCompare(D.ccaa[b], "es"));
+    $("ccaa").append(opcion("", "Ninguna (solo festivos nacionales)"));
+    $("ccaa-sede").append(opcion("", "La misma que la mía"));
+    for (const cc of nombres) {
+      $("ccaa").append(opcion(cc, D.ccaa[cc]));
+      $("ccaa-sede").append(opcion(cc, D.ccaa[cc]));
+    }
+    $("isla").append(opcion("", "Elige isla"));
+    Object.keys(D.insulares[ANIO_DATOS]).sort((a, b) => a.localeCompare(b, "es")).forEach((i) => $("isla").append(opcion(i, i)));
+    $("version").textContent = `plazos ${D.version}`;
+  }
+
+  // --- Estado <-> formulario <-> URL -----------------------------------------
+  function leer() {
+    const jurisdiccion = document.querySelector('input[name="jurisdiccion"]:checked').value;
+    const municipio = $("municipio").value;
+    const estado = {
+      jurisdiccion,
+      inicio: $("inicio").value,
+      cantidad: Number($("cantidad").value),
+      unidad: $("unidad").value,
+      urgente: jurisdiccion !== "administrativo" && $("urgente").checked,
+    };
+    if (municipio === OTRO) {
+      estado.ccaa = $("ccaa").value || null;
+      if (estado.ccaa === "CN" && $("isla").value) estado.isla = $("isla").value;
+      estado.festivosLocales = [...locales].sort();
+    } else {
+      estado.municipio = municipio;
+    }
+    if (jurisdiccion === "administrativo" && $("campo-sede").open && $("ccaa-sede").value) {
+      estado.lugares = [{ ccaa: $("ccaa-sede").value }];
+    }
+    return estado;
+  }
+
+  function aUrl(e) {
+    const p = new URLSearchParams({ j: e.jurisdiccion, i: e.inicio, n: e.cantidad, u: e.unidad });
+    if (e.municipio) p.set("m", e.municipio);
+    if (e.ccaa) p.set("c", e.ccaa);
+    if (e.isla) p.set("isla", e.isla);
+    if (e.festivosLocales && e.festivosLocales.length) p.set("l", e.festivosLocales.join(","));
+    if (e.urgente) p.set("urg", "1");
+    if (e.lugares) p.set("sede", e.lugares[0].ccaa);
+    return "#" + p.toString();
+  }
+
+  function desdeUrl() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (!p.has("i")) return false;
+    locales.clear();
+    const j = p.get("j") || "administrativo";
+    const radio = document.querySelector(`input[name="jurisdiccion"][value="${CSS.escape(j)}"]`);
+    if (radio) radio.checked = true;
+    $("inicio").value = p.get("i");
+    $("cantidad").value = p.get("n") || "10";
+    $("unidad").value = p.get("u") || "dias";
+    if (p.has("m") && [...$("municipio").options].some((o) => o.value === p.get("m"))) {
+      $("municipio").value = p.get("m");
+    } else {
+      $("municipio").value = OTRO;
+      $("ccaa").value = p.get("c") || "";
+      $("isla").value = p.get("isla") || "";
+      (p.get("l") || "").split(",").filter(Boolean).forEach((f) => locales.add(f));
+    }
+    $("urgente").checked = p.get("urg") === "1";
+    if (p.has("sede")) { $("campo-sede").open = true; $("ccaa-sede").value = p.get("sede"); }
+    return true;
+  }
+
+  // --- Interfaz dependiente de las opciones ----------------------------------
+  function ajustar() {
+    const j = document.querySelector('input[name="jurisdiccion"]:checked').value;
+    const judicial = j !== "administrativo";
+    const naturales = $("unidad").querySelector('option[value="dias_naturales"]');
+    naturales.disabled = judicial;
+    if (judicial && $("unidad").value === "dias_naturales") $("unidad").value = "dias";
+    $("campo-urgente").hidden = !judicial;
+    if (judicial) $("texto-urgente").textContent = TEXTO_URGENTE[j];
+    $("campo-sede").hidden = judicial;
+    const otro = $("municipio").value === OTRO;
+    $("otro-lugar").hidden = !otro;
+    $("ayuda-municipio").hidden = otro;
+    $("campo-isla").hidden = !(otro && $("ccaa").value === "CN");
+    const fichas = $("locales");
+    fichas.replaceChildren(...[...locales].sort().map((f) => {
+      const li = document.createElement("li");
+      const [a, m, d] = f.split("-");
+      li.append(`${d}/${m}/${a}`);
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = "×";
+      b.setAttribute("aria-label", `Quitar ${d}/${m}/${a}`);
+      b.addEventListener("click", () => { locales.delete(f); actualizar(); });
+      li.append(b);
+      return li;
+    }));
+  }
+
+  // --- Resultado ---------------------------------------------------------------
+  const fechaTxt = (f) => P.fechaLarga(f);
+  const corta = (iso) => { const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; };
+
+  function pintarPasos(r) {
+    $("pasos").replaceChildren(...r.pasos.map((p) => {
+      const li = document.createElement("li");
+      li.append(p.texto);
+      if (p.norma) {
+        const a = document.createElement("a");
+        a.className = "norma";
+        a.href = p.norma.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = p.norma.cita;
+        li.append(" ", a);
+      }
+      return li;
+    }));
+    $("avisos").replaceChildren(...r.advertencias.map((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      return li;
+    }));
+  }
+
+  function pintarCalendario(r) {
+    const cont = $("calendario");
+    const excluidos = new Map(r.excluidos.map((e) => [P.iso(e.fecha), e.motivo]));
+    const inicio = P.iso(r.inicio);
+    const fin = P.iso(r.vencimiento);
+    const gracia = r.presentacionHasta ? r.presentacionHasta.slice(0, 10) : null;
+    const ultimoDia = gracia || fin;
+    const numeros = new Map();
+    if (r.unidad === "dias") {
+      let n = 0;
+      for (let d = new Date(r.inicio.getTime() + 86400000); P.iso(d) <= fin; d = new Date(d.getTime() + 86400000)) {
+        if (!excluidos.has(P.iso(d))) numeros.set(P.iso(d), ++n);
+      }
+    }
+    const meses = [];
+    let a = r.inicio.getUTCFullYear();
+    let m = r.inicio.getUTCMonth();
+    const [aFin, mFin] = ultimoDia.split("-").map(Number);
+    while (a < aFin || (a === aFin && m <= mFin - 1)) {
+      meses.push([a, m]);
+      if (++m === 12) { m = 0; a++; }
+    }
+    let visibles = meses;
+    const piezas = [];
+    const porMeses = r.unidad === "meses" || r.unidad === "anios";
+    if (meses.length > 4 || (porMeses && meses.length > 2)) {
+      const finales = meses.slice(-2).filter(([a2, m2]) => `${a2}-${String(m2 + 1).padStart(2, "0")}` >= fin.slice(0, 7));
+      visibles = [meses[0], ...finales];
+      const p = document.createElement("p");
+      p.className = "calendario-resumen";
+      p.textContent = porMeses
+        ? "En los plazos por meses se cuenta de fecha a fecha: se muestran el mes de la notificación y el del vencimiento."
+        : `Se muestran el mes de la notificación y los dos últimos (${meses.length} meses en total).`;
+      piezas.push(p);
+    }
+    const rejilla = document.createElement("div");
+    rejilla.className = "calendario";
+    rejilla.style.display = "contents";
+    for (const [anio, mes] of visibles) {
+      const bloque = document.createElement("div");
+      bloque.className = "mes";
+      const h = document.createElement("h3");
+      h.textContent = `${MESES[mes]} ${anio}`;
+      const cab = document.createElement("div");
+      cab.className = "semana";
+      "LMXJVSD".split("").forEach((l) => { const s = document.createElement("span"); s.textContent = l; cab.append(s); });
+      const dias = document.createElement("div");
+      dias.className = "dias";
+      const primero = (new Date(Date.UTC(anio, mes, 1)).getUTCDay() + 6) % 7;
+      for (let i = 0; i < primero; i++) { const v = document.createElement("span"); v.className = "dia fuera"; dias.append(v); }
+      const total = new Date(Date.UTC(anio, mes + 1, 0)).getUTCDate();
+      for (let d = 1; d <= total; d++) {
+        const iso = `${anio}-${String(mes + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const motivo = excluidos.get(iso);
+        const el = document.createElement(motivo ? "button" : "span");
+        el.className = "dia";
+        el.textContent = d;
+        if (iso === inicio) { el.classList.add("notificacion"); el.title = "Notificación"; }
+        if (numeros.has(iso)) { el.classList.add("cuenta"); el.dataset.n = numeros.get(iso); }
+        if (motivo) {
+          el.type = "button";
+          el.classList.add("no");
+          if (!/^(sábado|domingo)$/.test(motivo)) el.classList.add("festivo");
+          el.setAttribute("aria-label", `${d}: no cuenta, ${motivo}`);
+          el.setAttribute("aria-pressed", "false");
+          el.addEventListener("click", () => {
+            cont.querySelectorAll('.dia[aria-pressed="true"]').forEach((x) => x.setAttribute("aria-pressed", "false"));
+            el.setAttribute("aria-pressed", "true");
+            const t = $("detalle-dia");
+            t.replaceChildren();
+            const s = document.createElement("strong");
+            s.textContent = corta(iso);
+            t.append(s, ` no cuenta: ${motivo}.`);
+          });
+        }
+        if (iso === fin) { el.classList.add("fin"); el.title = "Vencimiento"; }
+        if (iso === gracia) { el.classList.add("gracia"); el.title = "Hasta las 15:00 se puede presentar"; }
+        dias.append(el);
+      }
+      bloque.append(h, cab, dias);
+      rejilla.append(bloque);
+    }
+    piezas.push(rejilla);
+    cont.replaceChildren(...piezas);
+    $("detalle-dia").textContent = r.excluidos.length ? "Toca un día tachado para ver por qué no cuenta." : "";
+  }
+
+  function pintar(r) {
+    $("fecha-vence").textContent = fechaTxt(r.vencimiento);
+    const hasta = $("hasta");
+    hasta.replaceChildren();
+    if (r.presentacionHasta) {
+      const f = new Date(r.presentacionHasta.slice(0, 10) + "T00:00:00Z");
+      const s = document.createElement("strong");
+      s.textContent = `hasta las 15:00 del ${fechaTxt(f)}`;
+      hasta.append("Puedes presentar el escrito ", s, r.jurisdiccion === "social" ? " (art. 45.1 LRJS)." : " (art. 135.5 LEC).");
+    } else {
+      const s = document.createElement("strong");
+      s.textContent = "hasta las 23:59:59";
+      hasta.append("En el registro electrónico, ", s, " de ese día (art. 31.2 Ley 39/2015).");
+    }
+    pintarCalendario(r);
+    pintarPasos(r);
+  }
+
+  function explicacion(r) {
+    const lineas = [`Vence el ${fechaTxt(r.vencimiento)}.`];
+    if (r.presentacionHasta) {
+      lineas.push(`Último momento para presentar: ${fechaTxt(new Date(r.presentacionHasta.slice(0, 10) + "T00:00:00Z"))} a las 15:00.`);
+    }
+    lineas.push("");
+    r.pasos.forEach((p, i) => lineas.push(`${i + 1}. ${p.texto}${p.norma ? ` (${p.norma.cita})` : ""}`));
+    if (r.advertencias.length) { lineas.push(""); r.advertencias.forEach((a) => lineas.push(`Aviso: ${a}`)); }
+    lineas.push("", `Calculado con ${location.origin}${location.pathname}${aUrl(leer())}`);
+    return lineas.join("\n");
+  }
+
+  function actualizar() {
+    ajustar();
+    const e = leer();
+    const error = $("error");
+    try {
+      if (!e.inicio) throw new Error("Indica el día de la notificación.");
+      if (!(e.cantidad >= 1)) throw new Error("La duración tiene que ser un número mayor que cero.");
+      if (e.inicio < "2025-01-01" || e.inicio > "2028-12-31") throw new Error("La fecha tiene que estar entre 2025 y 2028.");
+      if (e.unidad === "dias" && e.cantidad > 365) throw new Error("Como mucho, 365 días hábiles.");
+      if (e.unidad !== "dias" && e.cantidad > 36) throw new Error("Como mucho, 36 meses o 3 años.");
+      ultimo = P.calcular(e);
+      error.hidden = true;
+      pintar(ultimo);
+      history.replaceState(null, "", aUrl(e));
+    } catch (err) {
+      error.textContent = err.message;
+      error.hidden = false;
+    }
+  }
+
+  // --- Acciones ---------------------------------------------------------------
+  function avisar(texto) {
+    const t = document.createElement("div");
+    t.className = "aviso-copiado";
+    t.setAttribute("role", "status");
+    t.textContent = texto;
+    document.body.append(t);
+    setTimeout(() => t.remove(), 1800);
+  }
+
+  async function copiar(texto, hecho) {
+    try { await navigator.clipboard.writeText(texto); avisar(hecho); } catch { avisar("No se ha podido copiar"); }
+  }
+
+  function ics(r) {
+    const compacto = (iso) => iso.replaceAll("-", "");
+    const fin = P.iso(r.vencimiento);
+    const siguiente = P.iso(new Date(r.vencimiento.getTime() + 86400000));
+    const escapar = (t) => t.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+    const plegar = (l) => l.match(/.{1,73}/gu).join("\r\n ");
+    const texto = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//jaimefgdev//plazos//ES", "CALSCALE:GREGORIAN", "BEGIN:VEVENT",
+      `UID:${compacto(fin)}-${Date.now()}@jaimefgdev.com`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+      `DTSTART;VALUE=DATE:${compacto(fin)}`, `DTEND;VALUE=DATE:${compacto(siguiente)}`,
+      plegar(`SUMMARY:${escapar("Vence plazo (" + r.cantidad + " " + $("unidad").selectedOptions[0].text + ")")}`),
+      plegar(`DESCRIPTION:${escapar(explicacion(r))}`),
+      "BEGIN:VALARM", "TRIGGER:-P2D", "ACTION:DISPLAY", "DESCRIPTION:Vence un plazo", "END:VALARM",
+      "END:VEVENT", "END:VCALENDAR", "",
+    ].join("\r\n");
+    const url = URL.createObjectURL(new Blob([texto], { type: "text/calendar;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `plazo-${fin}.ics`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // --- Arranque ---------------------------------------------------------------
+  rellenar();
+  if (!desdeUrl()) {
+    const hoy = new Date();
+    const iso = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())).toISOString().slice(0, 10);
+    $("inicio").value = iso < "2025-01-01" || iso > "2028-12-31" ? "2026-07-20" : iso;
+    $("municipio").value = "Madrid";
+  }
+  $("formulario").addEventListener("input", actualizar);
+  $("formulario").addEventListener("change", actualizar);
+  $("campo-sede").addEventListener("toggle", actualizar);
+  $("formulario").addEventListener("submit", (ev) => ev.preventDefault());
+  $("anadir-local").addEventListener("click", () => {
+    const v = $("nuevo-local").value;
+    if (v) { locales.add(v); $("nuevo-local").value = ""; actualizar(); }
+  });
+  $("copiar").addEventListener("click", () => ultimo && copiar(explicacion(ultimo), "Explicación copiada"));
+  $("enlace").addEventListener("click", () => copiar(location.href, "Enlace copiado"));
+  $("ics").addEventListener("click", () => ultimo && ics(ultimo));
+  window.addEventListener("hashchange", () => { if (desdeUrl()) actualizar(); });
+  actualizar();
+})();
