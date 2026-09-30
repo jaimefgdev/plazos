@@ -88,13 +88,26 @@ def _python(c: dict) -> dict:
     }
 
 
+def _exportador():
+    import importlib.util
+
+    ruta = Path(__file__).resolve().parents[1] / "scripts" / "exportar_web.py"
+    spec = importlib.util.spec_from_file_location("exportar_web", ruta)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
 @pytest.mark.skipif(NODE is None, reason="hace falta Node.js")
 def test_web_coincide_con_python(tmp_path):
+    # Los datos se generan con la versión de holidays instalada, para comparar solo el motor.
+    datos = tmp_path / "datos.js"
+    _exportador().main(datos)
     casos = _casos(600)
     script = tmp_path / "ejecutar.js"
     script.write_text(EJECUTOR, encoding="utf-8")
     salida = subprocess.run(
-        [NODE, str(script), str(WEB / "datos.js"), str(WEB / "plazos.js")],
+        [NODE, str(script), str(datos), str(WEB / "plazos.js")],
         input=json.dumps(casos),
         capture_output=True,
         text=True,
@@ -106,14 +119,13 @@ def test_web_coincide_con_python(tmp_path):
         assert resultado == _python(caso), caso
 
 
-def test_datos_web_al_dia():
+def test_datos_web_al_dia(tmp_path):
     """web/datos.js debe regenerarse cuando cambian los calendarios (scripts/exportar_web.py)."""
-    import importlib.util
+    import holidays
 
-    ruta = Path(__file__).resolve().parents[1] / "scripts" / "exportar_web.py"
-    spec = importlib.util.spec_from_file_location("exportar_web", ruta)
-    modulo = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(modulo)
     actual = (WEB / "datos.js").read_text(encoding="utf-8")
-    modulo.main()
-    assert (WEB / "datos.js").read_text(encoding="utf-8") == actual, "ejecuta scripts/exportar_web.py"
+    if f'"holidays":"{holidays.__version__}"' not in actual:
+        pytest.skip("web/datos.js se generó con otra versión de holidays")
+    nuevo = tmp_path / "datos.js"
+    _exportador().main(nuevo)
+    assert nuevo.read_text(encoding="utf-8") == actual, "ejecuta scripts/exportar_web.py"

@@ -16,6 +16,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "src"))
 
+import holidays  # noqa: E402
+
 from plazos import __version__  # noqa: E402
 from plazos import normas as N  # noqa: E402
 from plazos.calendario import CCAA, LOCALES, OFICIALES, Calendario, Lugar  # noqa: E402
@@ -32,7 +34,7 @@ def dias(anio: int):
         d += timedelta(days=1)
 
 
-def main() -> None:
+def main(destino: Path | None = None) -> None:
     festivos: dict[str, dict[str, dict[str, str]]] = {}
     for anio in ANIOS:
         nacional = Calendario([Lugar()])
@@ -68,6 +70,7 @@ def main() -> None:
 
     datos = {
         "version": __version__,
+        "holidays": holidays.__version__,
         "ccaa": CCAA,
         "oficiales": sorted(OFICIALES),
         "boe": {"referencia": boe_2026.REFERENCIA, "url": boe_2026.URL},
@@ -77,14 +80,14 @@ def main() -> None:
         "fuentes": fuentes,
         "normas": normas,
     }
-    destino = RAIZ / "web" / "datos.js"
+    destino = destino or RAIZ / "web" / "datos.js"
     destino.write_text(
         "// Generado por scripts/exportar_web.py: no editar a mano.\n"
         "globalThis.PLAZOS_DATOS = " + json.dumps(datos, ensure_ascii=False, separators=(",", ":")) + ";\n",
         encoding="utf-8",
         newline="\n",
     )
-    print(f"{destino.relative_to(RAIZ)}: {destino.stat().st_size // 1024} KB")
+    print(f"{destino.name}: {destino.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":
