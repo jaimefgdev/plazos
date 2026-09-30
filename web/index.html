@@ -27,7 +27,7 @@
 
   <main>
     <section class="intro">
-      <p class="etiqueta">Ley 39/2015 · LEC · LJCA · LRJS</p>
+      <p class="etiqueta">Ley 39/2015 · LEC · LJCA · LRJS · LGT</p>
       <h1>Calculadora de plazos</h1>
       <p class="entradilla">Dime cuándo te notificaron y cuánto dura el plazo. Te digo el día en que vence y
         el porqué de cada día que no cuenta, con su artículo.</p>
@@ -42,15 +42,27 @@
             <label><input type="radio" name="jurisdiccion" value="civil"><span>Civil</span></label>
             <label><input type="radio" name="jurisdiccion" value="contencioso"><span>Contencioso</span></label>
             <label><input type="radio" name="jurisdiccion" value="social"><span>Social</span></label>
+            <label><input type="radio" name="jurisdiccion" value="tributario"><span>Pago a Hacienda</span></label>
           </div>
         </fieldset>
 
         <div class="fila fila-fechas">
           <div class="campo">
-            <label for="inicio">Día de la notificación</label>
+            <label for="inicio" id="etiqueta-inicio">Día de la notificación</label>
             <input id="inicio" type="date" min="2025-01-01" max="2028-12-31" required>
           </div>
-          <div class="campo duracion">
+          <div class="campo" id="campo-hora" hidden>
+            <label for="hora">Hora de la notificación</label>
+            <input id="hora" type="time" value="10:00">
+          </div>
+          <div class="campo" id="campo-periodo" hidden>
+            <label for="periodo">Qué te han notificado</label>
+            <select id="periodo">
+              <option value="voluntario">Liquidación</option>
+              <option value="apremio">Apremio</option>
+            </select>
+          </div>
+          <div class="campo duracion" id="campo-duracion">
             <label for="cantidad">Duración</label>
             <div class="juntos">
               <input id="cantidad" type="number" min="1" max="365" value="10" inputmode="numeric" required>
@@ -59,6 +71,7 @@
                 <option value="dias_naturales">días naturales</option>
                 <option value="meses">meses</option>
                 <option value="anios">años</option>
+                <option value="horas">horas</option>
               </select>
             </div>
           </div>
@@ -144,7 +157,7 @@
     <section class="aviso-legal">
       <h2>Antes de fiarte</h2>
       <p>Es una herramienta orientativa y gratuita, no asesoramiento jurídico. Comprueba siempre el calendario
-        oficial y la norma de tu caso concreto: hay plazos con reglas propias (tributarios, penales, de caducidad…)
+        oficial y la norma de tu caso concreto: hay plazos con reglas propias (penales, autoliquidaciones de cada impuesto, caducidad…)
         que aquí no se tratan. Los festivos nacionales y autonómicos de 2026 salen del
         <a id="enlace-boe" href="https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-23702">BOE-A-2025-23702</a> y los
         locales de 7.390 municipios, del boletín de cada comunidad o provincia (con sus correcciones posteriores). El cálculo se hace en tu navegador:

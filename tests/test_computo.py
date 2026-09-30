@@ -306,3 +306,65 @@ def test_nombre_repetido_pide_provincia():
     with pytest.raises(ValueError, match="provincia"):
         municipios.buscar(nombre)
     assert municipios.buscar(nombre, provincia=lista[0].provincia).ine == lista[0].ine
+
+
+# --- Plazos por horas (Ley 39/2015, art. 30.1) ------------------------------------------
+
+
+def test_horas_saltan_dias_inhabiles():
+    # Viernes 9-10-2026 a las 10:00 + 24 h: 14 h el viernes; sábado, domingo y 12-10 no cuentan.
+    r = calcular(date(2026, 10, 9), 24, "horas", hora="10:00", ccaa="MD")
+    assert r.vencimiento == date(2026, 10, 13)
+    assert r.presentacion_hasta == datetime(2026, 10, 13, 10, 0)
+
+
+def test_horas_hasta_medianoche():
+    r = calcular(date(2026, 10, 5), 24, "horas", hora="00:00")
+    assert r.vencimiento == date(2026, 10, 5)
+    assert "a las 24:00" in r.explicar()
+
+
+def test_horas_notificacion_en_dia_inhabil():
+    # Sábado a las 18:00, 2 h: empieza a contar el lunes a las 00:00.
+    assert calcular(date(2026, 10, 3), 2, "horas", hora="18:00").presentacion_hasta == datetime(2026, 10, 5, 2, 0)
+
+
+@pytest.mark.parametrize(
+    "kwargs", [dict(cantidad=25, hora="10:00"), dict(cantidad=5), dict(cantidad=5, hora="10:00", jurisdiccion="civil")]
+)
+def test_horas_errores(kwargs):
+    with pytest.raises(ValueError):
+        calcular(**{"inicio": date(2026, 3, 2), "unidad": "horas", **kwargs})
+
+
+# --- Pago de deudas tributarias (LGT, art. 62) -----------------------------------------
+
+
+def test_pago_voluntario_primera_quincena():
+    from plazos import plazo_pago
+
+    assert plazo_pago(date(2026, 9, 10)).vencimiento == date(2026, 10, 20)
+
+
+def test_pago_voluntario_segunda_quincena_y_fin_de_semana():
+    from plazos import plazo_pago
+
+    # 16-7 -> día 5 del segundo mes siguiente: 5-9-2026 es sábado -> lunes 7-9.
+    r = plazo_pago(date(2026, 7, 16))
+    assert r.vencimiento == date(2026, 9, 7)
+    assert any("LGT, art. 7.2" in str(p) for p in r.pasos)
+
+
+def test_pago_apremio_con_festivos():
+    from plazos import plazo_pago
+
+    # 30-11 -> 5-12 (sábado), 6 (domingo), 7 (festivo en Madrid), 8 (nacional) -> 9-12.
+    assert plazo_pago(date(2026, 11, 30), "apremio", municipio="Madrid").vencimiento == date(2026, 12, 9)
+    assert plazo_pago(date(2026, 3, 3), "apremio").vencimiento == date(2026, 3, 20)
+
+
+def test_pago_periodo_desconocido():
+    from plazos import plazo_pago
+
+    with pytest.raises(ValueError):
+        plazo_pago(date(2026, 3, 3), "otro")

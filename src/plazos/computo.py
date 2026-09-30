@@ -11,7 +11,7 @@ from . import normas as N
 from .calendario import CCAA, Calendario, Lugar, municipio_datos
 
 JURISDICCIONES = ("administrativo", "civil", "contencioso", "social")
-UNIDADES = ("dias", "dias_naturales", "meses", "anios")
+UNIDADES = ("dias", "dias_naturales", "meses", "anios", "horas")
 _JUDICIALES = ("civil", "contencioso", "social")
 _DIAS_SEMANA = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 _MESES = (
@@ -65,7 +65,9 @@ class Resultado:
 
     def explicar(self) -> str:
         lineas = [f"Vence el {fecha_larga(self.vencimiento)}."]
-        if self.presentacion_hasta:
+        if self.presentacion_hasta and self.presentacion_hasta.time() == time(0, 0):
+            lineas.append(f"Último momento para presentar: {fecha_larga(self.vencimiento)} a las 24:00.")
+        elif self.presentacion_hasta:
             lineas.append(
                 "Último momento para presentar: "
                 f"{fecha_larga(self.presentacion_hasta.date())} a las "
@@ -156,6 +158,7 @@ def calcular(
     provincia: str | None = None,
     lugares: Iterable[Lugar] = (),
     urgente: bool = False,
+    hora: time | str | None = None,
 ) -> Resultado:
     """Calcula el vencimiento de un plazo.
 
@@ -176,6 +179,15 @@ def calcular(
         raise ValueError("Los plazos procesales se cuentan en días hábiles, no naturales")
     if urgente and jurisdiccion == "administrativo":
         raise ValueError("'urgente' solo se aplica a plazos judiciales")
+    hora_inicio = time(0, 0)
+    if unidad == "horas":
+        if jurisdiccion != "administrativo":
+            raise ValueError("Los plazos por horas solo se calculan para plazos administrativos (Ley 39/2015)")
+        if cantidad > 24:
+            raise ValueError("Un plazo por horas no puede pasar de 24 horas: la ley obliga a expresarlo en días")
+        if hora is None:
+            raise ValueError("En un plazo por horas hace falta la hora de la notificación (hora='10:30')")
+        hora_inicio = hora if isinstance(hora, time) else time.fromisoformat(hora)
 
     lista = list(lugares)
     if ccaa or festivos_locales or municipio or isla or provincia:
@@ -247,6 +259,75 @@ def calcular(
         if datos:
             dias = ", ".join(f"{d:%d/%m}" for d in datos.dias) or "ninguna para todo el término"
             paso(f"Fiestas locales de {lugar.municipio} en {inicio.year} ({dias}), según {datos.fuente}")
+
+    def cerrar(vencimiento: date, presentacion: datetime | None) -> Resultado:
+        """Avisos comunes (fiestas parciales, calendarios sin datos) y resultado."""
+        limite = presentacion.date() if presentacion else vencimiento
+        for lugar in cal.lugares:
+            for anio in sorted({inicio.year, limite.year}):
+                datos = municipio_datos(lugar, anio)
+                for p in datos.parciales if datos else ():
+                    if inicio < p.fecha <= limite and not reglas.inhabil(p.fecha):
+                        avisos.append(
+                            f"En {p.ambito} ({lugar.municipio}) también es fiesta local el {p.fecha:%d/%m/%Y}: "
+                            "si el plazo corre allí, ese día no cuenta y vencerá más tarde."
+                        )
+        for anio in sorted({inicio.year, vencimiento.year}):
+            if not cal.locales_conocidos(anio):
+                avisos.append(
+                    f"Faltan los festivos locales de {anio}: si el plazo cruza alguno, vencerá más "
+                    "tarde de lo calculado aquí. Indica el municipio o sus fiestas locales."
+                )
+            if not Calendario.es_oficial(anio):
+                avisos.append(
+                    f"El calendario de festivos de {anio} no está verificado con el BOE en esta "
+                    "versión; se usan los datos de la librería holidays."
+                )
+
+        return Resultado(
+            inicio=inicio,
+            cantidad=cantidad,
+            unidad=unidad,
+            jurisdiccion=jurisdiccion,
+            vencimiento=vencimiento,
+            pasos=tuple(pasos),
+            excluidos=tuple(excluidos),
+            advertencias=tuple(avisos),
+            presentacion_hasta=presentacion,
+            normas=tuple(normas),
+        )
+
+    if unidad == "horas":
+        # Ley 39/2015, art. 30.1: solo cuentan las horas de los días hábiles, de hora en hora y de
+        # minuto en minuto desde la notificación, y como mucho 24 (si no, el plazo va en días).
+        t = datetime.combine(inicio, hora_inicio)
+        paso(
+            f"Plazo por horas: se cuenta de hora en hora y de minuto en minuto desde la notificación "
+            f"({inicio:%d/%m/%Y} a las {hora_inicio:%H:%M}); solo cuentan las horas de días hábiles",
+            N.L39_30_1,
+        )
+        restante = timedelta(hours=cantidad)
+        while restante > timedelta(0):
+            motivo = reglas.inhabil(t.date())
+            siguiente_dia = datetime.combine(t.date() + timedelta(days=1), time(0, 0))
+            if motivo:
+                excluidos.append(DiaExcluido(t.date(), motivo))
+                t = siguiente_dia
+                continue
+            hueco = siguiente_dia - t
+            if hueco >= restante:
+                t += restante
+                restante = timedelta(0)
+            else:
+                restante -= hueco
+                t = siguiente_dia
+        if excluidos:
+            paso(f"Días que no cuentan: {_resumen_excluidos(excluidos)}", N.L39_30_2)
+        fin_dia = t.time() == time(0, 0)
+        vence = t.date() - timedelta(days=1) if fin_dia else t.date()
+        hora_txt = "24:00" if fin_dia else f"{t:%H:%M}"
+        paso(f"Las {cantidad} horas hábiles terminan el {fecha_larga(vence)} a las {hora_txt}")
+        return cerrar(vence, t)
 
     # 2) Cómputo.
     inicio_computo = inicio + timedelta(days=1)
@@ -353,42 +434,114 @@ def calcular(
             norma_gracia,
         )
 
-    limite = presentacion.date() if presentacion else vencimiento
-    for lugar in cal.lugares:
-        for anio in sorted({inicio.year, limite.year}):
-            datos = municipio_datos(lugar, anio)
-            for p in datos.parciales if datos else ():
-                if inicio < p.fecha <= limite and not reglas.inhabil(p.fecha):
-                    avisos.append(
-                        f"En {p.ambito} ({lugar.municipio}) también es fiesta local el {p.fecha:%d/%m/%Y}: "
-                        "si el plazo corre allí, ese día no cuenta y vencerá más tarde."
-                    )
-    for anio in sorted({inicio.year, vencimiento.year}):
-        if not cal.locales_conocidos(anio):
-            avisos.append(
-                f"Faltan los festivos locales de {anio}: si el plazo cruza alguno, vencerá más "
-                "tarde de lo calculado aquí. Indica el municipio o sus fiestas locales."
-            )
-        if not Calendario.es_oficial(anio):
-            avisos.append(
-                f"El calendario de festivos de {anio} no está verificado con el BOE en esta "
-                "versión; se usan los datos de la librería holidays."
-            )
-
-    return Resultado(
-        inicio=inicio,
-        cantidad=cantidad,
-        unidad=unidad,
-        jurisdiccion=jurisdiccion,
-        vencimiento=vencimiento,
-        pasos=tuple(pasos),
-        excluidos=tuple(excluidos),
-        advertencias=tuple(avisos),
-        presentacion_hasta=presentacion,
-        normas=tuple(normas),
-    )
+    return cerrar(vencimiento, presentacion)
 
 
 def _agostos_entre(inicio: date, fin: date) -> int:
     """Número de meses de agosto que caen entre el día siguiente a ``inicio`` y ``fin``."""
     return sum(1 for anio in range(inicio.year, fin.year + 1) if inicio < date(anio, 8, 31) and date(anio, 8, 1) <= fin)
+
+
+def plazo_pago(
+    notificacion: date,
+    periodo: str = "voluntario",
+    *,
+    ccaa: str | None = None,
+    festivos_locales: Iterable[date] = (),
+    municipio: str | None = None,
+    isla: str | None = None,
+    provincia: str | None = None,
+) -> Resultado:
+    """Último día para pagar una deuda tributaria liquidada por la Administración (LGT, art. 62).
+
+    ``periodo`` es ``"voluntario"`` (liquidación, art. 62.2) o ``"apremio"`` (providencia de
+    apremio, art. 62.5). Si ese día no es hábil, pasa al siguiente hábil; los días inhábiles
+    son los de la Ley 39/2015, que se aplica de forma supletoria (LGT, art. 7.2).
+    """
+    if periodo not in ("voluntario", "apremio"):
+        raise ValueError("El periodo debe ser 'voluntario' o 'apremio'")
+    lista = []
+    if ccaa or festivos_locales or municipio or isla or provincia:
+        lista.append(Lugar(ccaa, tuple(festivos_locales), isla, municipio, provincia))
+    cal = Calendario(lista)
+    reglas = _Reglas("administrativo", cal, False)
+    pasos: list[Paso] = []
+    avisos: list[str] = []
+    normas: list[N.Norma] = []
+
+    def paso(texto: str, norma: N.Norma | None = None) -> None:
+        pasos.append(Paso(texto, norma))
+        if norma and norma not in normas:
+            normas.append(norma)
+
+    primera_quincena = notificacion.day <= 15
+    if periodo == "voluntario":
+        norma = N.LGT_62_2
+        meses, dia = (1, 20) if primera_quincena else (2, 5)
+        que = "la liquidación"
+        destino = "del mes siguiente" if primera_quincena else "del segundo mes siguiente"
+    else:
+        norma = N.LGT_62_5
+        meses, dia = (0, 20) if primera_quincena else (1, 5)
+        que = "la providencia de apremio"
+        destino = "del mismo mes" if primera_quincena else "del mes siguiente"
+    base = _sumar_meses(date(notificacion.year, notificacion.month, 1), meses)
+    nominal = date(base.year, base.month, dia)
+    quincena = "entre el 1 y el 15" if primera_quincena else "entre el 16 y el último día"
+    paso(
+        f"Pago de una deuda tributaria en periodo {'voluntario' if periodo == 'voluntario' else 'ejecutivo'}: "
+        f"{que} se notificó el {notificacion:%d/%m/%Y}, {quincena} del mes, así que se puede pagar "
+        f"hasta el día {dia} {destino}, el {fecha_larga(nominal)}",
+        norma,
+    )
+    lugares_txt = []
+    for lugar in cal.lugares:
+        partes = [CCAA[lugar.ccaa]] if lugar.ccaa else []
+        if lugar.isla:
+            partes.append(f"isla de {lugar.isla}")
+        if lugar.municipio:
+            partes.append(lugar.municipio)
+        if lugar.festivos_locales:
+            n = len(lugar.festivos_locales)
+            partes.append(f"{n} {'festivo local indicado' if n == 1 else 'festivos locales indicados'}")
+        lugares_txt.append(", ".join(partes) or "solo festivos nacionales")
+    paso(f"Calendario de festivos: {lugares_txt[0]}")
+    vencimiento, saltados = reglas.siguiente_habil(nominal)
+    if saltados:
+        paso(
+            f"Ese día no es hábil ({_resumen_excluidos(saltados)}); el plazo pasa al inmediato hábil siguiente, "
+            f"el {fecha_larga(vencimiento)}",
+            norma,
+        )
+        paso(
+            "Son inhábiles los sábados, domingos y festivos, como en la Ley 39/2015, supletoria en lo tributario",
+            N.LGT_7_2,
+        )
+    if not any(lugar.ccaa for lugar in cal.lugares):
+        avisos.append("No se ha indicado comunidad autónoma: solo se descuentan los festivos nacionales.")
+    if not Calendario.es_oficial(vencimiento.year):
+        avisos.append(
+            f"El calendario de festivos de {vencimiento.year} no está verificado con el BOE en esta "
+            "versión; se usan los datos de la librería holidays."
+        )
+    if not cal.locales_conocidos(vencimiento.year):
+        avisos.append(
+            f"Faltan los festivos locales de {vencimiento.year}: si el último día es fiesta local, el plazo "
+            "pasa al siguiente hábil. Indica el municipio o sus fiestas locales."
+        )
+    avisos.append(
+        "El banco o la sede electrónica pueden tener su propio horario de cargo; "
+        "no dejes el pago para el último momento."
+    )
+    return Resultado(
+        inicio=notificacion,
+        cantidad=1,
+        unidad="pago_" + periodo,
+        jurisdiccion="tributario",
+        vencimiento=vencimiento,
+        pasos=tuple(pasos),
+        excluidos=tuple(saltados),
+        advertencias=tuple(avisos),
+        presentacion_hasta=None,
+        normas=tuple(normas),
+    )

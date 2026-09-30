@@ -1,5 +1,13 @@
 # Cambios
 
+## 0.3.0 — 2026-09-30
+
+- Plazos administrativos por horas (Ley 39/2015, art. 30.1): solo cuentan las horas de los días
+  hábiles, de hora en hora desde la notificación, hasta 24 horas.
+- Último día para pagar a Hacienda una deuda liquidada, en periodo voluntario (LGT, art. 62.2) o
+  tras la providencia de apremio (art. 62.5): `plazo_pago()` y `plazos FECHA --pago voluntario`.
+- La calculadora web incluye los dos.
+
 ## 0.2.0 — 2026-09-30
 
 - Fiestas locales de 2026 de 7.390 municipios de toda España (antes, solo las 50 capitales), con

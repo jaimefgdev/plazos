@@ -120,7 +120,7 @@ form.panel { display: grid; gap: 18px; position: sticky; top: 16px; }
 .fila-fechas { grid-template-columns: minmax(0, 150px) minmax(0, 1fr); }
 @media (max-width: 420px) { .fila-fechas { grid-template-columns: minmax(0, 1fr); } }
 
-input[type="date"], input[type="number"], input[type="search"], select {
+input[type="date"], input[type="number"], input[type="search"], input[type="time"], select {
   width: 100%; background: var(--superficie); color: var(--texto); border: 1px solid var(--borde-medio);
   border-radius: 6px; padding: 10px 12px; font: 0.95rem var(--sans); min-height: 44px;
 }
@@ -131,10 +131,10 @@ select { appearance: none; background-image: linear-gradient(45deg, transparent 
   padding-right: 34px; }
 input:hover, select:hover { border-color: var(--borde-medio); }
 
-.segmentos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--superficie);
+.segmentos { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; background: var(--superficie);
   border: 1px solid var(--borde); border-radius: 8px; padding: 4px; }
-@media (max-width: 420px) { .segmentos { grid-template-columns: repeat(2, 1fr); } }
-.segmentos label { position: relative; }
+.segmentos label { position: relative; grid-column: span 2; }
+.segmentos label:nth-child(n + 4) { grid-column: span 3; }
 .segmentos input { position: absolute; opacity: 0; inset: 0; }
 .segmentos span { display: block; text-align: center; padding: 9px 4px; border-radius: 6px; font-size: 0.86rem;
   color: var(--texto-suave); cursor: pointer; transition: background 0.15s, color 0.15s; }
@@ -219,3 +219,10 @@ h2 { font-size: 1.05rem; }
   background: var(--texto); color: var(--fondo); padding: 10px 16px; border-radius: 8px; font-size: 0.9rem; z-index: 10; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Tipo de plazo en el móvil: dos columnas y «Pago a Hacienda» a lo ancho. */
+@media (max-width: 420px) {
+  .segmentos { grid-template-columns: repeat(2, 1fr); }
+  .segmentos label, .segmentos label:nth-child(n + 4) { grid-column: span 1; }
+  .segmentos label:last-child { grid-column: span 2; }
+}

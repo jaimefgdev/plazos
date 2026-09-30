@@ -21,3 +21,18 @@ def test_cli_json(capsys):
 def test_cli_error(capsys):
     with pytest.raises(SystemExit):
         main(["2026-13-01", "5"])
+
+
+def test_cli_pago(capsys):
+    assert main(["2026-07-16", "--pago", "voluntario"]) == 0
+    assert "lunes, 7 de septiembre de 2026" in capsys.readouterr().out
+
+
+def test_cli_horas(capsys):
+    assert main(["2026-10-09", "24", "horas", "--hora", "10:00", "--ccaa", "MD"]) == 0
+    assert "a las 10:00" in capsys.readouterr().out
+
+
+def test_cli_sin_cantidad(capsys):
+    with pytest.raises(SystemExit):
+        main(["2026-07-16"])

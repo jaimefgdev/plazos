@@ -22,7 +22,7 @@ const Plazos = require(process.argv[3]);
 const casos = JSON.parse(fs.readFileSync(0, "utf8"));
 const salida = casos.map((c) => {
   try {
-    const r = Plazos.calcular(c);
+    const r = c.pago ? Plazos.plazoPago(c) : Plazos.calcular(c);
     return {
       vencimiento: Plazos.iso(r.vencimiento),
       presentacion: r.presentacionHasta,
@@ -61,13 +61,35 @@ def _casos(n: int) -> list[dict]:
                 caso["festivosLocales"] = [(date(2026, 1, 1) + timedelta(days=azar.randrange(365))).isoformat()]
         if j == "administrativo" and azar.random() < 0.2:
             caso["lugares"] = [{"ccaa": azar.choice(["MD", "VC", "AN"])}]
+        if j == "administrativo" and azar.random() < 0.35:
+            caso.update(
+                unidad="horas",
+                cantidad=azar.choice([1, 2, 12, 24]),
+                hora=f"{azar.randrange(24):02d}:{azar.choice([0, 15, 30, 59]):02d}",
+            )
+        if azar.random() < 0.1:
+            caso = {
+                "pago": True,
+                "notificacion": caso["inicio"],
+                "periodo": azar.choice(["voluntario", "apremio"]),
+                **{k: v for k, v in caso.items() if k in ("municipio", "ccaa", "festivosLocales")},
+            }
         casos.append(caso)
     return casos
 
 
 def _python(c: dict) -> dict:
-    from plazos import Lugar
+    from plazos import Lugar, plazo_pago
 
+    if c.get("pago"):
+        r = plazo_pago(
+            date.fromisoformat(c["notificacion"]),
+            c["periodo"],
+            ccaa=c.get("ccaa"),
+            festivos_locales=[date.fromisoformat(f) for f in c.get("festivosLocales", [])],
+            municipio=c.get("municipio"),
+        )
+        return _resultado(r)
     r = calcular(
         date.fromisoformat(c["inicio"]),
         c["cantidad"],
@@ -78,7 +100,12 @@ def _python(c: dict) -> dict:
         municipio=c.get("municipio"),
         lugares=[Lugar(**lugar) for lugar in c.get("lugares", [])],
         urgente=c["urgente"],
+        hora=c.get("hora"),
     )
+    return _resultado(r)
+
+
+def _resultado(r) -> dict:
     return {
         "vencimiento": r.vencimiento.isoformat(),
         "presentacion": r.presentacion_hasta.strftime("%Y-%m-%dT%H:%M") if r.presentacion_hasta else None,
@@ -103,7 +130,7 @@ def test_web_coincide_con_python(tmp_path):
     # Los datos se generan con la versión de holidays instalada, para comparar solo el motor.
     datos = tmp_path / "datos.js"
     _exportador().main(datos)
-    casos = _casos(600)
+    casos = _casos(1200)
     script = tmp_path / "ejecutar.js"
     script.write_text(EJECUTOR, encoding="utf-8")
     salida = subprocess.run(

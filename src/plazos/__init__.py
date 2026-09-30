@@ -1,7 +1,7 @@
 """Cálculo de plazos administrativos y procesales españoles, con la explicación y la norma de cada paso."""
 
 from .calendario import CCAA, Calendario, Lugar
-from .computo import JURISDICCIONES, UNIDADES, DiaExcluido, Paso, Resultado, calcular, fecha_larga
+from .computo import JURISDICCIONES, UNIDADES, DiaExcluido, Paso, Resultado, calcular, fecha_larga, plazo_pago
 
 __all__ = [
     "CCAA",
@@ -14,5 +14,6 @@ __all__ = [
     "Resultado",
     "calcular",
     "fecha_larga",
+    "plazo_pago",
 ]
-__version__ = "0.2.0"
+__version__ = "0.3.0"

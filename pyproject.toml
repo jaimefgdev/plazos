@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plazos"
-version = "0.2.0"
+version = "0.3.0"
 description = "Cálculo de plazos administrativos y judiciales españoles con la explicación y la norma de cada paso"
 readme = "README.md"
 license = "MIT"

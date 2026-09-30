@@ -23,7 +23,9 @@ LEC = "BOE-A-2000-323"
 LOPJ = "BOE-A-1985-12666"
 LJCA = "BOE-A-1998-16718"
 LRJS = "BOE-A-2011-15936"
+LGT = "BOE-A-2003-23186"
 
+L39_30_1 = Norma("Ley 39/2015, art. 30.1", _boe(L39, "a30"))
 L39_30_2 = Norma("Ley 39/2015, art. 30.2", _boe(L39, "a30"))
 L39_30_3 = Norma("Ley 39/2015, art. 30.3", _boe(L39, "a30"))
 L39_30_4 = Norma("Ley 39/2015, art. 30.4", _boe(L39, "a30"))
@@ -47,3 +49,7 @@ LJCA_128_2 = Norma("LJCA, art. 128.2", _boe(LJCA, "a128"))
 
 LRJS_43_4 = Norma("LRJS, art. 43.4", _boe(LRJS, "a43"))
 LRJS_45_1 = Norma("LRJS, art. 45.1", _boe(LRJS, "a45"))
+
+LGT_7_2 = Norma("LGT, art. 7.2", _boe(LGT, "a7"))
+LGT_62_2 = Norma("LGT, art. 62.2", _boe(LGT, "a62"))
+LGT_62_5 = Norma("LGT, art. 62.5", _boe(LGT, "a62"))

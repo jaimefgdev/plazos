@@ -38,6 +38,8 @@ Vence el martes, 15 de septiembre de 2026.
 | **Administrativo** | Ley 39/2015, art. 30: días hábiles sin sábados, domingos ni festivos; días naturales cuando una ley lo dice; meses y años de fecha a fecha (último día del mes si no hay equivalente); prórroga si el último día es inhábil; festivos del domicilio **y** de la sede del órgano (art. 30.6); registro electrónico hasta las 23:59:59 (art. 31.2). |
 | **Civil** | LEC arts. 130, 133 y 135.5 y LOPJ arts. 182–185: agosto y del 24 de diciembre al 6 de enero inhábiles; actuaciones urgentes; presentación hasta las 15:00 del día hábil siguiente. |
 | **Contencioso** | LJCA art. 128.2: en agosto no corre ningún plazo (también los de meses, como los dos meses del art. 46.1), salvo derechos fundamentales. |
+| **Por horas** | Ley 39/2015, art. 30.1: solo cuentan las horas de días hábiles, de hora en hora y de minuto en minuto desde la notificación, y como mucho 24 (si no, el plazo va en días). |
+| **Pago a Hacienda** | LGT, art. 62: deuda liquidada notificada del 1 al 15, hasta el día 20 del mes siguiente; del 16 al final, hasta el día 5 del segundo mes siguiente (o del 20 del mismo mes y el 5 del siguiente tras la providencia de apremio), pasando al siguiente día hábil si hace falta. |
 | **Social** | LRJS arts. 43.4 y 45.1: modalidades urgentes (despido, vacaciones, conflictos colectivos…) en las que agosto y Navidad son hábiles; presentación hasta las 15:00 del día siguiente. |
 
 **Calendarios incluidos**
@@ -95,6 +97,15 @@ calcular(date(2026, 5, 14), 10, ccaa="MD", festivos_locales=[date(2026, 5, 20), 
 # Interesado en Valencia y órgano en Madrid: cuenta como inhábil lo que lo sea en cualquiera.
 calcular(date(2026, 3, 18), 5, lugares=[Lugar(municipio="València"), Lugar("MD")])
 
+# Plazo por horas: notificado el viernes 9-10-2026 a las 10:00, 24 horas.
+calcular(date(2026, 10, 9), 24, "horas", hora="10:00", municipio="Madrid").presentacion_hasta
+# -> 2026-10-13 10:00 (no cuentan el fin de semana ni el 12 de octubre)
+
+# Último día para pagar una liquidación de Hacienda (o "apremio").
+from plazos import plazo_pago
+
+plazo_pago(date(2026, 7, 16), "voluntario", municipio="Madrid").vencimiento  # -> 2026-09-07
+
 # Despido (modalidad urgente de la LRJS): agosto y Navidad cuentan.
 calcular(date(2026, 12, 18), 20, "dias", "social", ccaa="CT", urgente=True)
 ```
@@ -107,6 +118,8 @@ cada uno), `excluidos` (cada día que no cuenta y por qué), `advertencias` y `n
 ```bash
 plazos 2026-07-20 20 dias -j civil --municipio Madrid
 plazos 2026-07-20 2 meses -j contencioso --ccaa AN --local 2026-06-04 --json
+plazos 2026-10-09 24 horas --hora 10:00 --municipio Madrid
+plazos 2026-07-16 --pago voluntario --municipio Madrid
 ```
 
 Comunidades con código ISO 3166-2: `AN AR AS IB CN CB CL CM CT EX GA MD MC NC PV RI VC CE ML`.
@@ -122,9 +135,13 @@ las advertencias:
 
 ## Qué no hace
 
-- No cubre plazos tributarios, penales ni de prescripción o caducidad civil con reglas propias.
+- No cubre los plazos penales: la LECrim (art. 201) y la LOPJ (art. 184) declaran hábiles todos los
+  días y horas para la instrucción, pero si eso alcanza a los plazos de recurso de las partes depende
+  de la jurisprudencia, así que no hay una regla que se pueda aplicar con total seguridad.
+- En lo tributario solo calcula el plazo de pago de las deudas liquidadas por la Administración; los
+  plazos de cada autoliquidación (modelos 303, 130…) dependen de la normativa de cada impuesto.
+- Tampoco cubre prescripción o caducidad civil con reglas propias.
 - No calcula cuándo se entiende hecha una notificación (por ejemplo, los tres días de LexNET o los diez de la sede electrónica): parte del día que le digas.
-- Plazos por horas: aún no.
 
 ## Herramienta web
 

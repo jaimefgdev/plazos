@@ -64,6 +64,19 @@
   function leer() {
     const jurisdiccion = document.querySelector('input[name="jurisdiccion"]:checked').value;
     const municipio = ineElegido();
+    if (jurisdiccion === "tributario") {
+      const e = { jurisdiccion, pago: true, inicio: $("inicio").value, notificacion: $("inicio").value,
+        periodo: $("periodo").value };
+      const ine = ineElegido();
+      if (ine) {
+        e.municipio = ine;
+      } else {
+        e.ccaa = $("ccaa").value || null;
+        if (e.ccaa === "CN" && $("isla").value) e.isla = $("isla").value;
+        e.festivosLocales = [...locales].sort();
+      }
+      return e;
+    }
     const estado = {
       jurisdiccion,
       inicio: $("inicio").value,
@@ -71,6 +84,7 @@
       unidad: $("unidad").value,
       urgente: jurisdiccion !== "administrativo" && $("urgente").checked,
     };
+    if (estado.unidad === "horas") estado.hora = $("hora").value;
     if (!municipio) {
       estado.ccaa = $("ccaa").value || null;
       if (estado.ccaa === "CN" && $("isla").value) estado.isla = $("isla").value;
@@ -85,7 +99,10 @@
   }
 
   function aUrl(e) {
-    const p = new URLSearchParams({ j: e.jurisdiccion, i: e.inicio, n: e.cantidad, u: e.unidad });
+    const p = e.pago
+      ? new URLSearchParams({ j: e.jurisdiccion, i: e.inicio, pp: e.periodo })
+      : new URLSearchParams({ j: e.jurisdiccion, i: e.inicio, n: e.cantidad, u: e.unidad });
+    if (e.hora) p.set("h", e.hora);
     if (e.municipio) p.set("m", e.municipio);
     if (e.ccaa) p.set("c", e.ccaa);
     if (e.isla) p.set("isla", e.isla);
@@ -105,6 +122,8 @@
     $("inicio").value = p.get("i");
     $("cantidad").value = p.get("n") || "10";
     $("unidad").value = p.get("u") || "dias";
+    if (p.has("h")) $("hora").value = p.get("h");
+    if (p.has("pp")) $("periodo").value = p.get("pp");
     if (p.has("m") && INE_A_ETIQUETA.has(p.get("m"))) {
       $("municipio").value = INE_A_ETIQUETA.get(p.get("m"));
     } else {
@@ -121,13 +140,19 @@
   // --- Interfaz dependiente de las opciones ----------------------------------
   function ajustar() {
     const j = document.querySelector('input[name="jurisdiccion"]:checked').value;
-    const judicial = j !== "administrativo";
-    const naturales = $("unidad").querySelector('option[value="dias_naturales"]');
-    naturales.disabled = judicial;
-    if (judicial && $("unidad").value === "dias_naturales") $("unidad").value = "dias";
+    const tributario = j === "tributario";
+    const judicial = j !== "administrativo" && !tributario;
+    for (const u of ["dias_naturales", "horas"]) {
+      $("unidad").querySelector(`option[value="${u}"]`).disabled = judicial;
+      if (judicial && $("unidad").value === u) $("unidad").value = "dias";
+    }
+    $("campo-duracion").hidden = tributario;
+    $("campo-periodo").hidden = !tributario;
+    $("campo-hora").hidden = tributario || $("unidad").value !== "horas";
+    $("etiqueta-inicio").textContent = tributario ? "Día en que recibiste la notificación" : "Día de la notificación";
     $("campo-urgente").hidden = !judicial;
     if (judicial) $("texto-urgente").textContent = TEXTO_URGENTE[j];
-    $("campo-sede").hidden = judicial;
+    $("campo-sede").hidden = j !== "administrativo";
     const ine = ineElegido();
     const otro = municipiosListos && !ine;
     $("otro-lugar").hidden = !otro;
@@ -211,7 +236,7 @@
     }
     let visibles = meses;
     const piezas = [];
-    const porMeses = r.unidad === "meses" || r.unidad === "anios";
+    const porMeses = r.unidad === "meses" || r.unidad === "anios" || r.jurisdiccion === "tributario";
     if (meses.length > 4 || (porMeses && meses.length > 2)) {
       const finales = meses.slice(-2).filter(([a2, m2]) => `${a2}-${String(m2 + 1).padStart(2, "0")}` >= fin.slice(0, 7));
       visibles = [meses[0], ...finales];
@@ -278,7 +303,16 @@
     $("fecha-vence").textContent = fechaTxt(r.vencimiento);
     const hasta = $("hasta");
     hasta.replaceChildren();
-    if (r.presentacionHasta) {
+    if (r.jurisdiccion === "tributario") {
+      const s = document.createElement("strong");
+      s.textContent = "hasta ese día";
+      hasta.append(`Puedes pagar en periodo ${r.unidad === "pago_voluntario" ? "voluntario" : "de apremio"} `, s,
+        r.unidad === "pago_voluntario" ? " (art. 62.2 LGT)." : " (art. 62.5 LGT).");
+    } else if (r.unidad === "horas") {
+      const s = document.createElement("strong");
+      s.textContent = `a las ${horaFin(r)}`;
+      hasta.append("El plazo acaba ", s, " de ese día (art. 30.1 Ley 39/2015).");
+    } else if (r.presentacionHasta) {
       const f = new Date(r.presentacionHasta.slice(0, 10) + "T00:00:00Z");
       const s = document.createElement("strong");
       s.textContent = `hasta las 15:00 del ${fechaTxt(f)}`;
@@ -292,9 +326,14 @@
     pintarPasos(r);
   }
 
+  // «2026-10-06T00:00» es el final (24:00) del día anterior.
+  const horaFin = (r) => (r.presentacionHasta.endsWith("T00:00") ? "24:00" : r.presentacionHasta.slice(11));
+
   function explicacion(r) {
     const lineas = [`Vence el ${fechaTxt(r.vencimiento)}.`];
-    if (r.presentacionHasta) {
+    if (r.unidad === "horas") {
+      lineas.push(`Último momento para presentar: ${fechaTxt(r.vencimiento)} a las ${horaFin(r)}.`);
+    } else if (r.presentacionHasta) {
       lineas.push(`Último momento para presentar: ${fechaTxt(new Date(r.presentacionHasta.slice(0, 10) + "T00:00:00Z"))} a las 15:00.`);
     }
     lineas.push("");
@@ -311,11 +350,14 @@
     const error = $("error");
     try {
       if (!e.inicio) throw new Error("Indica el día de la notificación.");
-      if (!(e.cantidad >= 1)) throw new Error("La duración tiene que ser un número mayor que cero.");
       if (e.inicio < "2025-01-01" || e.inicio > "2028-12-31") throw new Error("La fecha tiene que estar entre 2025 y 2028.");
-      if (e.unidad === "dias" && e.cantidad > 365) throw new Error("Como mucho, 365 días hábiles.");
-      if (e.unidad !== "dias" && e.cantidad > 36) throw new Error("Como mucho, 36 meses o 3 años.");
-      ultimo = P.calcular(e);
+      if (!e.pago) {
+        if (!(e.cantidad >= 1)) throw new Error("La duración tiene que ser un número mayor que cero.");
+        if (e.unidad === "dias" && e.cantidad > 365) throw new Error("Como mucho, 365 días hábiles.");
+        if (e.unidad === "horas" && e.cantidad > 24) throw new Error("Un plazo por horas no puede pasar de 24 horas.");
+        if (!["dias", "horas"].includes(e.unidad) && e.cantidad > 36) throw new Error("Como mucho, 36 meses o 3 años.");
+      }
+      ultimo = e.pago ? P.plazoPago(e) : P.calcular(e);
       error.hidden = true;
       pintar(ultimo);
       history.replaceState(null, "", aUrl(e));
@@ -350,7 +392,8 @@
       `UID:${compacto(fin)}-${Date.now()}@jaimefgdev.com`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
       `DTSTART;VALUE=DATE:${compacto(fin)}`, `DTEND;VALUE=DATE:${compacto(siguiente)}`,
-      plegar(`SUMMARY:${escapar("Vence plazo (" + r.cantidad + " " + $("unidad").selectedOptions[0].text + ")")}`),
+      plegar(`SUMMARY:${escapar(r.jurisdiccion === "tributario" ? "Último día para pagar a Hacienda"
+        : "Vence plazo (" + r.cantidad + " " + $("unidad").selectedOptions[0].text + ")")}`),
       plegar(`DESCRIPTION:${escapar(explicacion(r))}`),
       "BEGIN:VALARM", "TRIGGER:-P2D", "ACTION:DISPLAY", "DESCRIPTION:Vence un plazo", "END:VALARM",
       "END:VEVENT", "END:VCALENDAR", "",
