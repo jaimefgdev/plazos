@@ -235,3 +235,14 @@ def test_cincuenta_capitales():
 def test_municipio_desconocido_avisa():
     r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="Alcobendas")
     assert any("Faltan los festivos locales" in a for a in r.advertencias)
+
+
+def test_nombres_en_espanol_aunque_el_sistema_este_en_ingles(monkeypatch):
+    from plazos import calendario
+
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    calendario._nombres.cache_clear()
+    try:
+        assert "(Año Nuevo)" in Calendario([Lugar("MD")]).festivo(date(2027, 1, 1))
+    finally:
+        calendario._nombres.cache_clear()

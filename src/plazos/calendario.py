@@ -104,7 +104,7 @@ class Lugar:
 
 @cache
 def _nombres(anio: int, ccaa: str | None) -> dict[date, str]:
-    return dict(holidays.country_holidays("ES", years=anio, subdiv=ccaa))
+    return dict(holidays.country_holidays("ES", years=anio, subdiv=ccaa, language="es"))
 
 
 def _nombre(d: date, ccaa: str | None) -> str | None:
