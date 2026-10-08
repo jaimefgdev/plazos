@@ -1,8 +1,9 @@
 """Fiestas locales de 2026 de las 50 capitales de provincia.
 
 Cada dato se ha tomado del boletín oficial que lo publica (y de sus modificaciones
-conocidas hasta el 30-9-2026). Ceuta y Melilla no aparecen: sus fiestas ya están en el
-calendario autonómico del BOE. Formato: clave -> (nombre, comunidad, isla, días, fuente).
+conocidas hasta el 30-9-2026). Ceuta y Melilla no aparecen aquí porque no son capitales de
+provincia; sus fiestas locales (BOCCE y BOME) están en municipios_2026.json, como las de los
+demás municipios. Formato: clave -> (nombre, comunidad, isla, días, fuente).
 """
 
 FUENTES = {
