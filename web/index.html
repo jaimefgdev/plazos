@@ -46,6 +46,11 @@
           </div>
         </fieldset>
 
+        <div class="campo" id="campo-habituales">
+          <span class="rotulo">Plazos habituales <span class="opcional">(opcional)</span></span>
+          <div id="habituales" class="chips"></div>
+        </div>
+
         <div class="fila fila-fechas">
           <div class="campo">
             <label for="inicio" id="etiqueta-inicio">Día de la notificación</label>
@@ -53,35 +58,39 @@
           </div>
           <div class="campo" id="campo-hora" hidden>
             <label for="hora">Hora de la notificación</label>
-            <input id="hora" type="time" value="10:00">
+            <input id="hora" type="time">
           </div>
-          <div class="campo" id="campo-periodo" hidden>
-            <label for="periodo">Qué te han notificado</label>
-            <select id="periodo">
-              <option value="voluntario">Liquidación</option>
-              <option value="apremio">Apremio</option>
-            </select>
-          </div>
-          <div class="campo duracion" id="campo-duracion">
+          <div class="campo" id="campo-cantidad">
             <label for="cantidad">Duración</label>
-            <div class="juntos">
-              <input id="cantidad" type="number" min="1" max="365" value="10" inputmode="numeric" required>
-              <select id="unidad" aria-label="Unidad">
-                <option value="dias">días hábiles</option>
-                <option value="dias_naturales">días naturales</option>
-                <option value="meses">meses</option>
-                <option value="anios">años</option>
-                <option value="horas">horas</option>
-              </select>
-            </div>
+            <input id="cantidad" type="number" min="1" max="365" inputmode="numeric" placeholder="Ej.: 10" required>
           </div>
         </div>
 
+        <fieldset class="campo" id="campo-duracion">
+          <legend class="solo-lector">Unidad de la duración</legend>
+          <div class="segmentos unidades" role="radiogroup" aria-label="Unidad">
+            <label><input type="radio" name="unidad" value="dias" checked><span>días hábiles</span></label>
+            <label><input type="radio" name="unidad" value="dias_naturales"><span>días naturales</span></label>
+            <label><input type="radio" name="unidad" value="meses"><span>meses</span></label>
+            <label><input type="radio" name="unidad" value="anios"><span>años</span></label>
+            <label><input type="radio" name="unidad" value="horas"><span>horas</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="campo" id="campo-periodo" hidden>
+          <legend>Qué te han notificado</legend>
+          <div class="segmentos dos" role="radiogroup">
+            <label><input type="radio" name="periodo" value="voluntario" checked><span>Liquidación</span></label>
+            <label><input type="radio" name="periodo" value="apremio"><span>Apremio</span></label>
+          </div>
+        </fieldset>
+
         <div class="campo">
-          <label for="municipio">Municipio</label>
-          <input id="municipio" type="search" list="lista-municipios" autocomplete="off" spellcheck="false"
-            placeholder="Escribe tu municipio…">
-          <datalist id="lista-municipios"></datalist>
+          <label for="municipio">Municipio <span class="opcional">(para sus fiestas locales)</span></label>
+          <div class="combo">
+            <input id="municipio" type="text" autocomplete="off" spellcheck="false" role="combobox"
+              aria-autocomplete="list" aria-expanded="false" placeholder="Escribe tu municipio…">
+          </div>
           <p class="ayuda" id="ayuda-municipio" aria-live="polite">Cargando las fiestas locales de los municipios…</p>
         </div>
 
@@ -89,11 +98,13 @@
           <div class="fila">
             <div class="campo">
               <label for="ccaa">Comunidad autónoma</label>
-              <select id="ccaa"></select>
+              <div class="combo"><input id="ccaa" type="text" autocomplete="off" role="combobox"
+                aria-autocomplete="list" aria-expanded="false" placeholder="Elige…"></div>
             </div>
             <div class="campo" id="campo-isla" hidden>
               <label for="isla">Isla</label>
-              <select id="isla"></select>
+              <div class="combo"><input id="isla" type="text" autocomplete="off" role="combobox"
+                aria-autocomplete="list" aria-expanded="false" placeholder="Elige…"></div>
             </div>
           </div>
           <div class="campo">
@@ -115,14 +126,22 @@
           <summary>El órgano está en otra comunidad</summary>
           <p class="ayuda">Si un día es festivo en tu municipio o en la sede del órgano, no cuenta (art. 30.6).</p>
           <label for="ccaa-sede" class="solo-lector">Comunidad de la sede</label>
-          <select id="ccaa-sede"></select>
+          <div class="combo"><input id="ccaa-sede" type="text" autocomplete="off" role="combobox"
+            aria-autocomplete="list" aria-expanded="false" placeholder="Comunidad de la sede del órgano"></div>
         </details>
 
         <p id="error" class="error" role="alert" hidden></p>
       </form>
 
       <section class="resultado" aria-live="polite">
-        <div class="panel vencimiento" id="vencimiento">
+        <div class="panel vacio" id="vacio">
+          <p class="etiqueta">Vence</p>
+          <p class="fecha-grande apagada">¿Cuándo te notificaron?</p>
+          <p class="hasta">Pon el día de la notificación y la duración del plazo (o elige uno de los habituales)
+            y aquí verás el día en que vence, día a día y con cada artículo.</p>
+        </div>
+
+        <div class="panel vencimiento" id="vencimiento" hidden>
           <p class="etiqueta">Vence</p>
           <p class="fecha-grande" id="fecha-vence">—</p>
           <p class="hasta" id="hasta"></p>
@@ -133,7 +152,7 @@
           </div>
         </div>
 
-        <div class="panel">
+        <div class="panel con-resultado" hidden>
           <div class="titulo-panel">
             <h2>Día a día</h2>
             <ul class="leyenda">
@@ -146,7 +165,7 @@
           <p id="detalle-dia" class="detalle-dia">Toca un día para ver por qué no cuenta.</p>
         </div>
 
-        <div class="panel">
+        <div class="panel con-resultado" hidden>
           <h2>Cómo se calcula</h2>
           <ol id="pasos" class="pasos"></ol>
           <ul id="avisos" class="avisos"></ul>

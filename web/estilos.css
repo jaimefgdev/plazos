@@ -226,3 +226,53 @@ h2 { font-size: 1.05rem; }
   .segmentos label, .segmentos label:nth-child(n + 4) { grid-column: span 1; }
   .segmentos label:last-child { grid-column: span 2; }
 }
+
+/* --- Rótulos, plazos habituales y unidades como botones -------------------------------- */
+.rotulo { font-size: 0.86rem; color: var(--texto); font-weight: 700; }
+.opcional { font-weight: 400; color: var(--texto-suave); }
+.chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 360px) { .chips { grid-template-columns: minmax(0, 1fr); } }
+.chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; min-width: 0;
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borde); border-radius: 8px;
+  padding: 7px 10px; font: 0.84rem var(--sans); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.chip:hover { border-color: var(--borde-medio); }
+.chip[aria-pressed="true"] { border-color: var(--acento); background: var(--acento-suave); }
+.chip-nombre { line-height: 1.25; }
+.chip-dato { font-family: var(--mono); font-size: 0.7rem; color: var(--texto-suave); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+.segmentos.unidades, .segmentos.dos { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.segmentos.unidades.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.segmentos.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.segmentos.unidades label, .segmentos.unidades label:nth-child(n + 4),
+.segmentos.dos label, .segmentos.dos label:nth-child(n + 4) { grid-column: span 1; }
+.segmentos.unidades span { font-size: 0.8rem; padding-inline: 2px; line-height: 1.2; }
+@media (max-width: 420px) {
+  .segmentos.unidades { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .segmentos.unidades label:last-child, .segmentos.dos label:last-child { grid-column: span 1; }
+}
+
+/* --- Buscador con lista propia (municipio y comunidades) -------------------------------- */
+.combo { position: relative; }
+input[type="text"] {
+  width: 100%; background: var(--superficie); color: var(--texto); border: 1px solid var(--borde-medio);
+  border-radius: 6px; padding: 10px 12px; font: 0.95rem var(--sans); min-height: 44px;
+}
+input::placeholder { color: var(--texto-suave); opacity: 1; }
+.lista-combo {
+  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; right: 0; max-height: 264px; overflow-y: auto;
+  margin: 0; padding: 4px; list-style: none; background: var(--panel); border: 1px solid var(--borde-medio);
+  border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.lista-combo li { padding: 8px 10px; border-radius: 5px; font-size: 0.92rem; color: var(--texto-cuerpo); cursor: pointer; }
+.lista-combo li:hover, .lista-combo li[aria-selected="true"] { background: var(--acento-suave); color: var(--texto); }
+.lista-combo li.sin { color: var(--texto-suave); cursor: default; background: none; }
+.enlace { background: none; border: 0; padding: 0; color: var(--acento-texto); font: inherit; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; }
+.enlace:hover { color: var(--acento); }
+
+/* --- Antes de calcular nada -------------------------------------------------------------- */
+.vacio { border-style: dashed; }
+.fecha-grande.apagada { color: var(--texto-suave); }
