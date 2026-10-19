@@ -9,6 +9,7 @@ from datetime import date, datetime, time, timedelta
 
 from . import normas as N
 from .calendario import CCAA, Calendario, Lugar, municipio_datos
+from .municipios import Municipio
 
 JURISDICCIONES = ("administrativo", "civil", "contencioso", "social")
 UNIDADES = ("dias", "dias_naturales", "meses", "anios", "horas")
@@ -127,7 +128,7 @@ def _norma_inhabiles(jurisdiccion: str) -> N.Norma:
     return {"administrativo": N.L39_30_2, "social": N.LRJS_43_4}.get(jurisdiccion, N.LEC_130_2)
 
 
-def texto_fiestas(municipio: str, anio: int, datos) -> str:
+def texto_fiestas(municipio: str | None, anio: int, datos: Municipio) -> str:
     """Paso con las fiestas locales del municipio (o por qué no tiene)."""
     if datos.estado == "no_comunicado":
         return (
@@ -143,7 +144,7 @@ def texto_fiestas(municipio: str, anio: int, datos) -> str:
     return f"Fiestas locales de {municipio} en {anio} ({dias}), según {datos.fuente}"
 
 
-def avisos_municipio(municipio: str, anio: int, datos) -> list[str]:
+def avisos_municipio(municipio: str | None, anio: int, datos: Municipio) -> list[str]:
     out = []
     if datos.estado:
         out.append(
