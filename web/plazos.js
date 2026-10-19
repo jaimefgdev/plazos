@@ -26,6 +26,30 @@
   const ddmm = (f) => `${dos(dia(f))}/${dos(mes(f))}`;
   const ddmmaaaa = (f) => `${ddmm(f)}/${anio(f)}`;
 
+  // Paso con las fiestas locales del municipio (o por qué no tiene) y sus avisos.
+  function textoFiestas(municipio, a, d) {
+    if (d.estado === "no_comunicado") {
+      return `Fiestas locales de ${municipio} en ${a}: ninguna; el boletín recoge que el ayuntamiento ` +
+        `no las comunicó (${d.fuente.texto})`;
+    }
+    if (d.estado === "no_publicado") {
+      return `Fiestas locales de ${municipio} en ${a}: ninguna; ${municipio} no figura en ${d.fuente.texto} ` +
+        "ni en sus correcciones";
+    }
+    const dias = d.dias.map((x) => ddmm(deIso(x))).join(", ") || "ninguna para todo el término";
+    return `Fiestas locales de ${municipio} en ${a} (${dias}), según ${d.fuente.texto}`;
+  }
+
+  function avisosMunicipio(municipio, a, d) {
+    const out = [];
+    if (d.estado) {
+      out.push(`No se ha descontado ninguna fiesta local de ${municipio} en ${a} porque el boletín oficial no ` +
+        "publica ninguna. Si el ayuntamiento celebra alguna, compruébala: el plazo vencería más tarde.");
+    }
+    if (d.aviso) out.push(`Fiestas locales de ${municipio}: ${d.aviso}.`);
+    return out;
+  }
+
   function fechaLarga(f) {
     return `${DIAS_SEMANA[semana(f)]}, ${dia(f)} de ${MESES[mes(f) - 1]} de ${anio(f)}`;
   }
@@ -51,7 +75,8 @@
     .replace(/’/g, "'").split(/\s+/).filter(Boolean).join(" ");
 
   // Fiestas locales de los municipios (web/municipios.json, que la página carga al empezar).
-  // Cada fila: [INE, nombre, comunidad, provincia, isla, días, parciales, fuente, año].
+  // Cada fila: [INE, nombre, comunidad, provincia, isla, días, parciales, fuente, año] y, si los
+  // tiene, [estado, aviso] (ver src/plazos/municipios.py).
   let INDICE = null;
   function indice() {
     const M = raiz.PLAZOS_MUNICIPIOS;
@@ -62,6 +87,7 @@
         const m = {
           ine: f[0], nombre: f[1], ccaa: f[2], provincia: f[3], isla: f[4] || null, dias: f[5],
           parciales: f[6].map(([fecha, ambito]) => ({ fecha, ambito })), fuente: M.fuentes[f[7]], anio: f[8],
+          estado: f[9] || null, aviso: f[10] || null,
         };
         INDICE.porIne.set(`${m.anio}:${m.ine}`, m);
         const k = normalizar(m.nombre);
@@ -261,8 +287,8 @@
     for (const l of lugares) {
       const d = datosLugar(l, anio(inicio));
       if (d) {
-        const dias = d.dias.map((x) => ddmm(deIso(x))).join(", ") || "ninguna para todo el término";
-        paso(`Fiestas locales de ${l.municipio} en ${anio(inicio)} (${dias}), según ${d.fuente.texto}`);
+        paso(textoFiestas(l.municipio, anio(inicio), d));
+        avisos.push(...avisosMunicipio(l.municipio, anio(inicio), d));
       }
     }
 

@@ -46,28 +46,30 @@ Vence el martes, 15 de septiembre de 2026.
 
 - **Festivos nacionales y autonómicos de 2026** tomados del anexo de la
   [Resolución BOE-A-2025-23702](https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-23702), incluidos los insulares de Canarias. Para otros años se usa la librería [holidays](https://pypi.org/project/holidays/) y el resultado lo advierte.
-- **Fiestas locales de 2026 de 7.390 municipios** (el 91 % de los 8.132 de España), sacadas de los
-  boletines oficiales de las 17 comunidades, de las 9 provincias de Castilla y León y de Ceuta y
-  Melilla, con sus correcciones y resoluciones complementarias (por ejemplo, Bilbao pasó del 21 al
-  28 de agosto). Los que faltan son ayuntamientos que no comunicaron sus fiestas a tiempo. La fuente
-  sale en la explicación.
+- **Fiestas locales de 2026 de los 8.132 municipios de España**, sacadas de los boletines
+  oficiales de las 17 comunidades, de las 9 provincias de Castilla y León y de Ceuta y Melilla, con
+  sus correcciones y resoluciones complementarias (por ejemplo, Bilbao pasó del 21 al 28 de agosto).
+  628 no tienen fiestas locales en 2026: el boletín dice que el ayuntamiento no las comunicó o el
+  municipio no figura en él, y las fiestas locales solo existen si se publican (art. 46 del
+  RD 2001/1983). En esos casos no se descuenta ninguna y el resultado lo avisa. La fuente sale en
+  la explicación.
 - **Fiestas de pedanías, parroquias y entidades locales menores**: si en parte del municipio hay
   otra fiesta local (Raimat en Lleida, las parroquias de Llanes…), el resultado lo avisa si cae
   dentro del plazo.
 - En Canarias, el municipio decide también la fiesta insular (Arucas → Gran Canaria).
 - Para un municipio sin datos puedes pasar sus fiestas locales con `festivos_locales=[...]`.
 
-| | Municipios con datos | | Municipios con datos |
-|---|---|---|---|
-| Andalucía | 756 de 785 | Comunitat Valenciana | 539 de 542 |
-| Aragón | 581 de 731 | Extremadura | 388 de 388 |
-| Asturias | 78 de 78 | Galicia | 313 de 313 |
-| Canarias | 88 de 88 | Illes Balears | 67 de 67 |
-| Cantabria | 102 de 102 | La Rioja | 163 de 174 |
-| Castilla y León | 1.832 de 2.248 | Madrid | 171 de 179 |
-| Castilla-La Mancha | 905 de 919 | Murcia | 45 de 45 |
-| Cataluña | 886 de 947 | Navarra | 229 de 272 |
-| Ceuta y Melilla | 2 de 2 | País Vasco | 245 de 252 |
+| | Con fiestas | Sin fiestas | | Con fiestas | Sin fiestas |
+|---|---|---|---|---|---|
+| Andalucía | 774 | 11 | Comunitat Valenciana | 539 | 3 |
+| Aragón | 581 | 150 | Extremadura | 388 | 0 |
+| Asturias | 78 | 0 | Galicia | 313 | 0 |
+| Canarias | 88 | 0 | Illes Balears | 67 | 0 |
+| Cantabria | 102 | 0 | La Rioja | 163 | 11 |
+| Castilla y León | 1.847 | 401 | Madrid | 173 | 6 |
+| Castilla-La Mancha | 905 | 14 | Murcia | 45 | 0 |
+| Cataluña | 918 | 29 | Navarra | 269 | 3 |
+| Ceuta y Melilla | 2 | 0 | País Vasco | 252 | 0 |
 
 ## Instalación
 

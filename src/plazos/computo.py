@@ -127,6 +127,34 @@ def _norma_inhabiles(jurisdiccion: str) -> N.Norma:
     return {"administrativo": N.L39_30_2, "social": N.LRJS_43_4}.get(jurisdiccion, N.LEC_130_2)
 
 
+def texto_fiestas(municipio: str, anio: int, datos) -> str:
+    """Paso con las fiestas locales del municipio (o por qué no tiene)."""
+    if datos.estado == "no_comunicado":
+        return (
+            f"Fiestas locales de {municipio} en {anio}: ninguna; el boletín recoge que el ayuntamiento "
+            f"no las comunicó ({datos.fuente})"
+        )
+    if datos.estado == "no_publicado":
+        return (
+            f"Fiestas locales de {municipio} en {anio}: ninguna; {municipio} no figura en {datos.fuente} "
+            "ni en sus correcciones"
+        )
+    dias = ", ".join(f"{d:%d/%m}" for d in datos.dias) or "ninguna para todo el término"
+    return f"Fiestas locales de {municipio} en {anio} ({dias}), según {datos.fuente}"
+
+
+def avisos_municipio(municipio: str, anio: int, datos) -> list[str]:
+    out = []
+    if datos.estado:
+        out.append(
+            f"No se ha descontado ninguna fiesta local de {municipio} en {anio} porque el boletín oficial no "
+            "publica ninguna. Si el ayuntamiento celebra alguna, compruébala: el plazo vencería más tarde."
+        )
+    if datos.aviso:
+        out.append(f"Fiestas locales de {municipio}: {datos.aviso}.")
+    return out
+
+
 def _resumen_excluidos(excluidos: Sequence[DiaExcluido]) -> str:
     """Agrupa los días excluidos por motivo, sin listar cada fin de semana."""
     finde = sum(1 for e in excluidos if e.motivo in ("sábado", "domingo"))
@@ -257,8 +285,8 @@ def calcular(
     for lugar in cal.lugares:
         datos = municipio_datos(lugar, inicio.year)
         if datos:
-            dias = ", ".join(f"{d:%d/%m}" for d in datos.dias) or "ninguna para todo el término"
-            paso(f"Fiestas locales de {lugar.municipio} en {inicio.year} ({dias}), según {datos.fuente}")
+            paso(texto_fiestas(lugar.municipio, inicio.year, datos))
+            avisos.extend(avisos_municipio(lugar.municipio, inicio.year, datos))
 
     def cerrar(vencimiento: date, presentacion: datetime | None) -> Resultado:
         """Avisos comunes (fiestas parciales, calendarios sin datos) y resultado."""

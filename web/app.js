@@ -325,9 +325,15 @@
     } else if (ine) {
       const m = P.municipioDatos(ine, Number(D.aniosMunicipios[D.aniosMunicipios.length - 1]));
       const dias = m.dias.map((x) => `${x.slice(8, 10)}/${x.slice(5, 7)}`).join(" y ") || "sin fiestas comunes a todo el término";
-      ayuda.textContent = `Fiestas locales de ${m.anio}: ${dias}` +
-        (m.parciales.length ? `, y otras en ${m.parciales.length === 1 ? "una zona" : "algunas zonas"} del municipio.` : ".") +
-        ` Fuente: ${m.fuente.texto}.`;
+      if (m.estado) {
+        ayuda.textContent = `Sin fiestas locales en ${m.anio}: ` +
+          (m.estado === "no_comunicado" ? "el boletín recoge que el ayuntamiento no las comunicó." :
+            "el municipio no figura en el boletín oficial de su provincia.") + ` Fuente: ${m.fuente.texto}.`;
+      } else {
+        ayuda.textContent = `Fiestas locales de ${m.anio}: ${dias}` +
+          (m.parciales.length ? `, y otras en ${m.parciales.length === 1 ? "una zona" : "algunas zonas"} del municipio.` : ".") +
+          (m.aviso ? ` Ojo: ${m.aviso}.` : "") + ` Fuente: ${m.fuente.texto}.`;
+      }
     } else if (escrito) {
       ayuda.textContent = "No encuentro ese municipio: elige uno de la lista o indica abajo la comunidad y sus fiestas locales.";
     } else {

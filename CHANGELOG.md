@@ -1,5 +1,18 @@
 # Cambios
 
+## Sin publicar
+
+- Fiestas locales de 2026 de los 8.132 municipios. Se han revisado en los boletines los 742 que
+  faltaban: 114 tienen fiestas (relaciones complementarias de Ávila, BOJA n.º 247 de 2025,
+  concejos de Navarra con fecha móvil, núcleos de Cataluña…) y 628 no tienen ninguna publicada:
+  el boletín dice que no las comunicaron o no figuran en él. Estos últimos llevan `estado`
+  (`"no_comunicado"` o `"no_publicado"`) y el cálculo avisa de que no se ha descontado ninguna.
+- `Municipio.aviso` cuando la fecha publicada no es inequívoca (Baztan, Labastida, Ciruelos de Cervera).
+- Correcciones: Guarromán (BOJA n.º 32 de 2026), Coín (BOJA n.º 247), El Pinar y Píñar, Calonge de
+  Segarra, y los núcleos de varios municipios de Cataluña que estaban asignados al municipio anterior.
+- La búsqueda por nombre distingue la «ñ» («Píñar» ya no se confunde con El Pinar), y sigue
+  encontrando el nombre escrito sin ella.
+
 ## 0.3.0 — 2026-09-30
 
 - Plazos administrativos por horas (Ley 39/2015, art. 30.1): solo cuentan las horas de los días

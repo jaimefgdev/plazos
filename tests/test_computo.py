@@ -233,8 +233,42 @@ def test_cincuenta_capitales():
 
 
 def test_municipio_desconocido_avisa():
-    r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="La Hiruela")  # no comunicó sus fiestas
+    r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="Villanueva de Ningunsitio")
     assert any("Faltan los festivos locales" in a for a in r.advertencias)
+
+
+def test_municipio_que_no_comunico_sus_fiestas():
+    # La Hiruela: «no comunicado» en el BOCM. No hay fiestas que descontar, pero se avisa.
+    r = calcular(date(2026, 3, 2), 1, ccaa="MD", municipio="La Hiruela")
+    assert any("no las comunicó" in str(p) for p in r.pasos)
+    assert any("no publica ninguna" in a for a in r.advertencias)
+    assert not any("Faltan los festivos locales" in a for a in r.advertencias)
+
+
+def test_municipio_que_no_figura_en_el_boletin():
+    from plazos import municipios
+
+    m = municipios.buscar("Albillos", provincia="Burgos")
+    assert m.estado == "no_publicado" and m.dias == ()
+    r = calcular(date(2026, 3, 2), 1, municipio=m.ine)
+    assert any("no figura en BOP de Burgos" in str(p) for p in r.pasos)
+
+
+def test_fecha_dudosa_avisa():
+    r = calcular(date(2026, 10, 22), 1, municipio="Baztan")
+    assert r.vencimiento == date(2026, 10, 26)  # el 23 (viernes tras San Lucas) es fiesta
+    assert any("San Lucas" in a for a in r.advertencias)
+
+
+def test_correcciones_de_los_boletines():
+    from plazos import municipios
+
+    d = lambda m, x: date(2026, m, x)  # noqa: E731
+    assert municipios.buscar("Guarromán").dias == (d(6, 12), d(7, 24))  # BOJA n.º 32 de 2026
+    assert municipios.buscar("Píñar").dias == (d(5, 4), d(6, 12))
+    assert municipios.buscar("El Pinar", provincia="Granada").dias == (d(5, 4), d(8, 17))
+    assert municipios.buscar("Cóbdar").dias == (d(1, 19), d(8, 10))  # BOJA n.º 247 de 2025
+    assert len(municipios.todos(2026)) == 8132  # todos los municipios del INE
 
 
 def test_nombres_en_espanol_aunque_el_sistema_este_en_ingles(monkeypatch):

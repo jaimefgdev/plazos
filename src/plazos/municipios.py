@@ -3,6 +3,12 @@
 Cada año hay un fichero ``datos/municipios_AAAA.json`` con, por municipio: código INE,
 comunidad, provincia, sus fiestas locales (``dias``), las que solo rigen en parte del
 término (``parciales``: pedanías, parroquias, entidades locales menores) y la fuente.
+
+Un municipio sin fiestas tiene ``estado``: ``"no_comunicado"`` si el boletín dice que el
+ayuntamiento no las comunicó, o ``"no_publicado"`` si no figura en ningún boletín de su
+provincia. Las fiestas locales solo existen si la autoridad laboral las fija y las publica
+(art. 46 del RD 2001/1983), así que en los dos casos no hay días que descontar. ``aviso`` es
+una nota cuando la fecha publicada no es inequívoca.
 """
 
 from __future__ import annotations
@@ -37,6 +43,8 @@ class Municipio:
     fuente: str
     url: str
     isla: str | None = None
+    estado: str | None = None
+    aviso: str | None = None
 
     @property
     def nombre_legible(self) -> str:
@@ -44,7 +52,11 @@ class Municipio:
 
 
 def normalizar(texto: str) -> str:
-    s = "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn").lower()
+    # La «ñ» se conserva: si no, «Píñar» y «El Pinar» (Granada) serían el mismo nombre.
+    s = "".join(
+        c if c == "ñ" else "".join(x for x in unicodedata.normalize("NFD", c) if unicodedata.category(x) != "Mn")
+        for c in unicodedata.normalize("NFC", texto).lower()
+    )
     s = re.sub(r"[^a-z0-9ñç' ]+", " ", s.replace("’", "'").replace("´", "'"))
     return " ".join(s.split())
 
@@ -72,6 +84,7 @@ def _variantes(nombre: str) -> set[str]:
         for forma in (parte, legible(parte)):
             n = normalizar(forma)
             out |= {n, _ART.sub("", n), n.replace("'", "")}
+            out |= {v.replace("ñ", "n") for v in tuple(out)}  # también se encuentra escrito sin «ñ»
     return {v for v in out if v}
 
 
@@ -94,6 +107,8 @@ def _cargar(anio: int) -> tuple[dict[str, Municipio], dict[str, list[Municipio]]
             fuente=f["texto"],
             url=f["url"],
             isla=r.get("isla"),
+            estado=r.get("estado"),
+            aviso=r.get("aviso"),
         )
         por_ine[m.ine] = m
         for v in _variantes(m.nombre):

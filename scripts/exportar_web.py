@@ -59,19 +59,20 @@ def main(destino: Path | None = None) -> None:
     for anio in municipios.ANIOS:
         for m in sorted(municipios.todos(anio), key=lambda m: m.ine):
             clave = fuentes.setdefault(m.fuente, {"texto": m.fuente, "url": m.url, "id": str(len(fuentes))})["id"]
-            lista.append(
-                [
-                    m.ine,
-                    m.nombre_legible,
-                    m.ccaa,
-                    m.provincia,
-                    m.isla or "",
-                    [d.isoformat() for d in m.dias],
-                    [[p.fecha.isoformat(), p.ambito] for p in m.parciales],
-                    int(clave),
-                    anio,
-                ]
-            )
+            fila = [
+                m.ine,
+                m.nombre_legible,
+                m.ccaa,
+                m.provincia,
+                m.isla or "",
+                [d.isoformat() for d in m.dias],
+                [[p.fecha.isoformat(), p.ambito] for p in m.parciales],
+                int(clave),
+                anio,
+            ]
+            if m.estado or m.aviso:  # solo en los pocos que los tienen, para no engordar el fichero
+                fila += [m.estado or "", m.aviso or ""]
+            lista.append(fila)
     mun = {"fuentes": [{"texto": f["texto"], "url": f["url"]} for f in fuentes.values()], "municipios": lista}
     ruta_mun = (destino or RAIZ / "web" / "datos.js").with_name("municipios.json")
     ruta_mun.write_text(json.dumps(mun, ensure_ascii=False, separators=(",", ":")), encoding="utf-8", newline="\n")
